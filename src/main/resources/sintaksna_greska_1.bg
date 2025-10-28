@@ -1,0 +1,7 @@
+function f(a : int)
+	print(a)
+	print(1)
+	print(a)
+end function
+
+call f(5)

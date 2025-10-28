@@ -1,0 +1,13 @@
+begin function fibRec(n:int):int
+  begin if (n <= 1)
+    return n
+  else
+    call fibRec(n-1) -> f1
+    call fibRec(n-2) -> f2
+    f1 + f2 -> r
+    return r
+  end if
+end function
+
+call fibRec(7) -> f
+call print(f)

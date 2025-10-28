@@ -1,0 +1,16 @@
+begin function fizzbuzz(n:int)
+  int i
+  begin for (i goes from 1 to n)
+    begin if (i % 15 = 0)
+      print(111102222)
+    or if (i % 3 = 0)
+      print(1111)
+    or if (i % 5 = 0)
+      print(2222)
+    else
+      print(i)
+    end if
+  end for
+end function
+
+call fizzbuzz(25)

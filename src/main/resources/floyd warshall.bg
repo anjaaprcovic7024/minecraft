@@ -1,0 +1,30 @@
+int MAXN
+100 -> MAXN
+
+begin function floydWarshall(g:int[][], n:int):int[][]
+  int INF
+  1000000000 -> INF
+
+  int[MAXN][MAXN] dist
+  int i,j,k
+
+  begin for (i goes from 0 to n-1)
+    begin for (j goes from 0 to n-1)
+      g[i][j] -> dist[i][j]
+    end for
+  end for
+
+  begin for (k goes from 0 to n-1)
+    begin for (i goes from 0 to n-1)
+      begin for (j goes from 0 to n-1)
+        begin if (dist[i][k] < INF and dist[k][j] < INF)
+          begin if (dist[i][k] + dist[k][j] < dist[i][j])
+            dist[i][k] + dist[k][j] -> dist[i][j]
+          end if
+        end if
+      end for
+    end for
+  end for
+
+  return dist
+end function

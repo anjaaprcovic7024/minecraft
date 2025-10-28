@@ -1,0 +1,7 @@
+begin function f(a:int):int[]
+  int[2] r
+  1 -> r[0]
+  2 -> r[1]
+  
+int a[2]
+call f(5) -> a

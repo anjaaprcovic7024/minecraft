@@ -1,0 +1,14 @@
+int a
+5 -> a
+int b
+7 -> b
+begin if (a < b
+  call print(-1)
+or if (a = b)
+  call print(0)
+else
+  call print(1)
+end if
+
+call print(a)
+call print(b)

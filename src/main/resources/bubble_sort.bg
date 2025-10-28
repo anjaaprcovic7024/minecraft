@@ -1,0 +1,24 @@
+begin function bubbleSort(a:int[], n:int)
+  int i,j,tmp,n1,n2
+  n-1 -> n1
+  begin for (i goes from 0 to n1)
+    n-i-2 -> n2
+    begin for (j goes from 0 to n2)
+      begin if (a[j] > a[j+1])
+        a[j] -> tmp
+        a[j+1] -> a[j]
+        tmp -> a[j+1]
+      end if
+    end for
+  end for
+end function
+
+int[5] arr
+4 -> arr[0]
+2 -> arr[1]
+5 -> arr[2]
+1 -> arr[3]
+3 -> arr[4]
+
+call bubbleSort(arr,5)
+call print1D(arr, 5)

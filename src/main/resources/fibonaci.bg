@@ -1,0 +1,20 @@
+begin function fib(n:int):int
+  int a,b,i,tmp
+  0 -> a
+  1 -> b
+  begin if (n = 0)
+    return a
+  end if
+  begin if (n = 1)
+    return b
+  end if
+  begin for (i goes from 2 to n)
+    a + b -> tmp
+    b -> a
+    tmp -> b
+  end for
+  return b
+end function
+
+call fib(7) -> f
+call print(f)

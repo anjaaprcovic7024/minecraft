@@ -1,0 +1,34 @@
+begin function add3D(a:int[][][], b:int[][][], n:int, m:int, p:int):int[][][]
+  int[i][j][k] c
+  int i,j,k
+  begin for (i goes from 0 to n-1)
+    begin for (j goes from 0 to m-1)
+      begin for (k goes from 0 to p-1)
+        a[i][j][k] + b[i][j][k] -> c[i][j][k]
+      end for
+    end for
+  end for
+  return c
+end function
+
+int[2][2][2] a,b,c
+1 -> a[0][0][0]
+2 -> a[0][0][1]
+3 -> a[0][1][0]
+4 -> a[0][1][1]
+5 -> a[1][0][0]
+6 -> a[1][0][1]
+7 -> a[1][1][0]
+8 -> a[1][1][1]
+
+8 -> b[0][0][0]
+7 -> b[0][0][1]
+6 -> b[0][1][0]
+5 -> b[0][1][1]
+4 -> b[1][0][0]
+3 -> b[1][0][1]
+2 -> b[1][1][0]
+1 -> b[1][1][1]
+
+call add3D(a,b,2,2,2) -> c
+call print3D(c,2,  2 ,2)

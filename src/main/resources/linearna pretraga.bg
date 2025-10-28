@@ -1,0 +1,21 @@
+begin function linearSearch(a:int[], n:int, key:int):int
+  int i
+  begin for (i goes from 0 to n-1)
+    begin if (a[i] = key)
+      return i
+    end if
+  end for
+  int ret = 0-1
+  return ret
+end function
+
+int[5] arr
+4 -> arr[0]
+2 -> arr[1]
+5 -> arr[2]
+1 -> arr[3]
+3 -> arr[4]
+
+int pos
+call linearSearch(arr,5,5) -> pos
+call print(pos)
