@@ -1,0 +1,14 @@
+mine fibRec(gold n#0:) {
+    dig (n <= 1) {
+        loot n:
+    } bedrock {
+        gold f1#fibRec(n - 1):
+        gold f2#fibRec(n - 2):
+        gold r#f1 + f2:
+        loot r:
+    }
+}
+
+gold f#fibRec(7):
+
+collect(f):

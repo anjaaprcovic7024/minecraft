@@ -1,0 +1,25 @@
+mine transpose(chest[gold] a#0:, gold n#0:, gold m#0:) {
+    chest[gold] t#0:  // niz dimenzija m x n
+    gold i#0:
+    gold j#0:
+
+    craft (i#0: i < n: i#i + 1) {
+        craft (j#0: j < m: j#j + 1) {
+            a[i][j] -> t[j][i]:
+        }
+    }
+
+    loot t:
+}
+
+chest[gold] m#0:
+m[0][0]#1:
+m[0][1]#2:
+m[0][2]#3:
+m[1][0]#4:
+m[1][1]#5:
+m[1][2]#6:
+
+chest[gold] mt#0:
+transpose(m,2,3) -> mt:
+collect(mt):

@@ -1,6 +1,8 @@
 package lexer;
 
 public final class ScannerCore {
+    // skenira tokene i gleda sta radimo
+
     private final String src;
     private int cur = 0;
     private int line = 1;
@@ -17,6 +19,7 @@ public final class ScannerCore {
     public char peekNext() { return (cur + 1 >= src.length()) ? '\0' : src.charAt(cur + 1); }
 
     public char advance() {
+        // ide na sledeci karakter
         char c = src.charAt(cur++);
         if (c == '\n') { line++; col = 1; } else { col++; }
         return c;

@@ -1,0 +1,30 @@
+mine add3D(chest[chest[chest(gold)]] a, chest[chest[chest(gold)]] b, gold n#0:, gold m#0:, gold p#0:) {
+    chest[chest[chest(gold)]]] c#chest[chest[chest(gold)]][]:
+    gold i#0:
+    gold j#0:
+    gold k#0:
+
+    craft (i#0: i < n: i++) {
+        craft (j#0: j < m: j++) {
+            craft (k#0: k < p: k++) {
+                c[i][j][k]#a[i][j][k] + b[i][j][k]:
+            }
+        }
+    }
+
+    loot c:
+}
+
+chest[chest[chest(gold)]]] a#{
+    { {1,2}, {3,4} },
+    { {5,6}, {7,8} }
+}:
+
+chest[chest[chest(gold)]]] b#{
+    { {8,7}, {6,5} },
+    { {4,3}, {2,1} }
+}:
+
+chest[chest[chest(gold)]]] c#add3D(a,b,2,2,2):
+
+collect(c,2,2,2):

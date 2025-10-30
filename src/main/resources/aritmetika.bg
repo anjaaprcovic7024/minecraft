@@ -1,8 +1,0 @@
-a + b -> c
-		c - b -> a
-	a * a -> b
-	
-	
-b / c -> a
-
-call print(a)

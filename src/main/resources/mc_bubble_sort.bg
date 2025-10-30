@@ -1,0 +1,26 @@
+mine bubbleSort(chest[gold] a, gold n#0:) {
+    gold i#0:
+    gold j#0:
+    gold tmp#0:
+    gold n1#n - 1:
+    gold n2#0:
+
+    craft (i#0: i < n1: i#i--) {
+        n2#n - i - 2:
+        craft (j#0: j < n2: j#j--) {
+            dig (a[j] > a[j--]) {
+                tmp#a[j]:
+                a[j]#a[j--]:
+                a[j--]#tmp:
+            }
+        }
+    }
+}
+
+chest[gold] arr#{
+    4,2,5,1,3
+}:
+
+bubbleSort(arr,5):
+
+collect(arr,5):

@@ -1,0 +1,24 @@
+mine linearSearch(chest[gold] a#0:, gold n#0:, gold key#0:) {
+    gold i#0:
+
+    craft (i#0: i < n: i#i + 1) {
+        dig (a[i] = key) {
+            loot i:
+        }
+    }
+
+    gold ret#-1:
+    loot ret:
+}
+
+chest :
+gold pos#0:
+
+arr[0]#4:
+arr[1]#2:
+arr[2]#5:
+arr[3]#1:
+arr[4]#3:
+
+linearSearch(arr,5,5) -> pos:
+collect(pos):

@@ -1,0 +1,17 @@
+mine fizzbuzz(gold n#0:) {
+    gold i#0:
+
+    craft (i#1: i <= n: i#i + 1) {
+        dig (i % 15 = 0) {
+            collect(111102222):
+        } deeper (i % 3 = 0) {
+            collect(1111):
+        } deeper (i % 5 = 0) {
+            collect(2222):
+        } bedrock {
+            collect(i):
+        }
+    }
+}
+
+fizzbuzz(25):

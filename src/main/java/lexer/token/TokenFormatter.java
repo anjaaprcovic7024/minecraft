@@ -3,6 +3,7 @@ package lexer.token;
 import java.util.List;
 
 public final class TokenFormatter {
+    // vrsi formatiranje tokena, kreiranje objekata i predstavljanje izlazne tabele u konzoli
 
     private static String escape(String s) {
         return s.replace("\n", "\\n").replace("\0", "\\0");
@@ -17,9 +18,9 @@ public final class TokenFormatter {
     }
 
     public static String format(Token t) {
-        String typeStr = center(String.valueOf(t.type), 10);
+        String typeStr = center(String.valueOf(t.type), 20);
         String lexStr = center("'" + escape(t.lexeme) + "'", 18);
-        String litStr = center(t.literal == null ? "N/A" : t.literal.toString(), 11);
+        String litStr = center(t.literal == null ? " " : t.literal.toString(), 11);
         String lineStr = center("line " + t.line, 9);
         String colStr = center("col " + t.colStart + "-" + t.colEnd, 12);
 
@@ -31,7 +32,7 @@ public final class TokenFormatter {
 
         String header = String.format(
             "|%s|%s|%s|%s|%s|",
-            center("TYPE", 10),
+            center("TYPE", 20),
             center("LEXEME", 18),
             center("LITERAL", 11),
             center("LINE", 9),
