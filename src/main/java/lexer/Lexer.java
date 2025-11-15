@@ -80,6 +80,7 @@ public class Lexer {
             case '=' -> add(TokenType.EQ);
             case '?' -> add(TokenType.TQUESTION);
             case ';' -> add(TokenType.TSEMICOLON);
+            case '^' -> add(TokenType.CARET);
 
             case '+' -> {
                 if (sc.match('+')) {
