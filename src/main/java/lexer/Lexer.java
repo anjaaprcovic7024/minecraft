@@ -176,7 +176,7 @@ public class Lexer {
     }
 
     private boolean isIdentPart(char c)  {
-        return isIdentStart(c) || Character.isDigit(c);
+        return isIdentStart(c) || Character.isDigit(c) || c == '#';
     }
 
     private void add(TokenType type) {

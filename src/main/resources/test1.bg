@@ -1,0 +1,7 @@
+mine main() {
+    gold a#5:
+    gold b#10:
+    gold zbir:
+    zbir#(a + b):
+}
+

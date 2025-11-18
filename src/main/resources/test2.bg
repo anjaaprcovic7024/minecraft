@@ -1,0 +1,7 @@
+redstone aktivan#powered:
+
+dig (aktivan) {
+   collect("Redstone signal je aktivan"):
+} deeper {
+   collect("Signal nije aktivan"):
+}

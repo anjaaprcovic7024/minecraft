@@ -1,0 +1,9 @@
+
+mine predstavi() {
+    collect("Ja sam Steve!"):
+}
+
+mine main() {
+fortress Igrac steve:
+steve.predstavi():
+

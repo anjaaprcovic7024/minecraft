@@ -1,0 +1,6 @@
+chest[gold] nizBrojeva#[1, 2, 3, 4]:
+gold zbir#0:
+craft (gold i # 0: i < 4: i # i + 1) {
+    zbir#zbir + nizBrojeva[i]:
+}
+collect("Zbir niza je " + zbir):

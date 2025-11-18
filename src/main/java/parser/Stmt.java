@@ -1,142 +1,119 @@
 package parser;
 
 import lexer.token.Token;
+
 import java.util.List;
 
 public abstract class Stmt {
 
     public interface Visitor<R> {
         R visitVarDecl(VarDecl s);
+        R visitReturn(Return s);
         R visitAssign(Assign s);
-        R visitPrint(Print s);
-        R visitScan(Scan s);
-        R visitIf(If s);
-        R visitWhile(While s);
-        R visitFor(For s);
-        R visitExprStmt(ExprStmt s);
+        R visitCallStmt(CallStmt s);
+        R visitBeginIf(BeginIf s);
+        R visitBeginFor(BeginFor s);
+        R visitIncDec(IncDec s);
+        R visitWhileStmt(WhileStmt s);
+        R visitDoWhileStmt(DoWhileStmt s);
     }
 
     public abstract <R> R accept(Visitor<R> v);
 
-    // gold x, y;  / diamond[2][3] a;
+    // int[...] a, b, c
     public static final class VarDecl extends Stmt {
-        public final Token typeKeyword;   // to su nam 'gold', 'diamond', 'redstone'...
-        public final int arrayRank;       // broj [] (0 ako nije niz)
-        public final List<Token> names;   // lista identifikatora
-
-        public VarDecl(Token typeKeyword, int arrayRank, List<Token> names) {
-            this.typeKeyword = typeKeyword;
-            this.arrayRank = arrayRank;
-            this.names = names;
+        public final List<Expr> dims;
+        public final List<Token> names;
+        public final List<Expr> values; // dodato
+        public VarDecl(List<Expr> dims, List<Token> names, List<Expr> values) {
+            this.dims = dims; this.names = names; this.values = values;
         }
-
         @Override public <R> R accept(Visitor<R> v) { return v.visitVarDecl(this); }
     }
 
-    // target # value;
-    // target može biti IDENT ili IDENT[expr]...
+
+    public static final class Return extends Stmt {
+        public final Expr expr;
+        public Return(Expr expr) { this.expr = expr; }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitReturn(this); }
+    }
+
     public static final class Assign extends Stmt {
-        public final Expr target;   // npr. ident ili index
-        public final Token op;      // ASSIGN ('#')
-        public final Expr value;
-
-        public Assign(Expr target, Token op, Expr value) {
-            this.target = target;
-            this.op = op;
-            this.value = value;
-        }
-
+        public final Expr left;
+        public final LValue lvalue;
+        public Assign(Expr left, LValue lvalue) { this.left = left; this.lvalue = lvalue; }
         @Override public <R> R accept(Visitor<R> v) { return v.visitAssign(this); }
     }
 
-    // collect(expr);
-    public static final class Print extends Stmt {
-        public final Token keyword; // u ovom slucaju PRINT
-        public final Expr expr;
-
-        public Print(Token keyword, Expr expr) {
-            this.keyword = keyword;
-            this.expr = expr;
-        }
-
-        @Override public <R> R accept(Visitor<R> v) { return v.visitPrint(this); }
+    public static final class CallStmt extends Stmt {
+        public final Expr.Call call;
+        public CallStmt(Expr.Call call) { this.call = call; }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitCallStmt(this); }
     }
 
-    // drop(x);  (učitavanje)
-    public static final class Scan extends Stmt {
-        public final Token keyword; // SCAN
-        public final Expr target;   // često će ovo biti ident
-
-        public Scan(Token keyword, Expr target) {
-            this.keyword = keyword;
-            this.target = target;
-        }
-
-        @Override public <R> R accept(Visitor<R> v) { return v.visitScan(this); }
-    }
-
-    // dig (cond) { thenBranch } deeper(cond2) { ... } bedrock { elseBranch }
-    public static final class If extends Stmt {
+    public static final class BeginIf extends Stmt {
         public static final class Arm {
-            public final Expr condition;
-            public final List<Stmt> body;
-            public Arm(Expr condition, List<Stmt> body) {
-                this.condition = condition; this.body = body;
-            }
+            public final Expr cond;                 // aexpr rel_op aexpr
+            public final List<Stmt> block;         // block
+            public Arm(Expr cond, List<Stmt> block) { this.cond = cond; this.block = block; }
         }
-
-        public final Arm ifArm;              // dig
-        public final List<Arm> elseIfArms;   // deeper
-        public final List<Stmt> elseBranch;  // bedrock (može biti null)
-
-        public If(Arm ifArm, List<Arm> elseIfArms, List<Stmt> elseBranch) {
-            this.ifArm = ifArm;
-            this.elseIfArms = elseIfArms;
-            this.elseBranch = elseBranch;
+        public final Arm ifArm;
+        public final List<Arm> orIfArms;
+        public final List<Stmt> elseBlock; // null ako ne postoji
+        public BeginIf(Arm ifArm, List<Arm> orIfArms, List<Stmt> elseBlock) {
+            this.ifArm = ifArm; this.orIfArms = orIfArms; this.elseBlock = elseBlock;
         }
-
-        @Override public <R> R accept(Visitor<R> v) { return v.visitIf(this); }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitBeginIf(this); }
     }
 
-    // build (cond) { body }
-    public static final class While extends Stmt {
-        public final Token keyword; // WHILE (build)
-        public final Expr condition;
-        public final List<Stmt> body;
+    public static final class BeginFor extends Stmt {
+        public final Token var;        // IDENT
+        public final Expr from;        // aexpr
+        public final List<Stmt> body;  // telo petlje
 
-        public While(Token keyword, Expr condition, List<Stmt> body) {
-            this.keyword = keyword;
-            this.condition = condition;
-            this.body = body;
-        }
-
-        @Override public <R> R accept(Visitor<R> v) { return v.visitWhile(this); }
-    }
-
-    // craft (i goes from a to b) { body }
-    // OVO PRILAGODITI JER NISAM SIGURNA DA SAM DOBRO ODRADILA
-    public static final class For extends Stmt {
-        public final Token keyword; // FOR (craft)
-        public final Token var;     // IDENT
-        public final Expr from;
-        public final Expr to;
-        public final List<Stmt> body;
-
-        public For(Token keyword, Token var, Expr from, Expr to, List<Stmt> body) {
-            this.keyword = keyword;
+        public BeginFor(Token var, Expr from, List<Stmt> body) {
             this.var = var;
             this.from = from;
-            this.to = to;
             this.body = body;
         }
 
-        @Override public <R> R accept(Visitor<R> v) { return v.visitFor(this); }
+        @Override
+        public <R> R accept(Visitor<R> v) { return v.visitBeginFor(this); }
     }
 
-    // gola naredba izraza, npr: a + b * c;
-    public static final class ExprStmt extends Stmt {
-        public final Expr expr;
-        public ExprStmt(Expr expr) { this.expr = expr; }
-        @Override public <R> R accept(Visitor<R> v) { return v.visitExprStmt(this); }
+    public static final class IncDec extends Stmt {
+        public final LValue target;
+        public final Token op; // INC ili DEC
+        public IncDec(LValue target, Token op) {
+            this.target = target;
+            this.op = op;
+        }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitIncDec(this); }
+    }
+
+    public static final class WhileStmt extends Stmt {
+        public final Expr cond;
+        public final List<Stmt> body;
+        public WhileStmt(Expr cond, List<Stmt> body) {
+            this.cond = cond;
+            this.body = body;
+        }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitWhileStmt(this); }
+    }
+
+    public static final class DoWhileStmt extends Stmt {
+        public final List<Stmt> body;
+        public final Expr cond;
+        public DoWhileStmt(List<Stmt> body, Expr cond) {
+            this.body = body;
+            this.cond = cond;
+        }
+        @Override public <R> R accept(Visitor<R> v) { return v.visitDoWhileStmt(this); }
+    }
+
+    public static final class LValue {
+        public final Token name;
+        public final List<Expr> indices;
+        public LValue(Token name, List<Expr> indices) { this.name = name; this.indices = indices; }
     }
 }
