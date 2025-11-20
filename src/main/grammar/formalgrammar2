@@ -1,0 +1,344 @@
+// ---------------------------------------------------------------------------
+// TOKEN MAPIRANJE (komentari, nije deo gramatike)
+// FUNCTION  = 'mine'
+// RETURN    = 'loot'
+// IF        = 'dig'
+// ELSEIF    = 'deeper'
+// ELSE      = 'bedrock'
+// FOR       = 'craft'
+// WHILE     = 'build'
+// DO        = 'do'
+// BOOLEAN   = 'redstone'
+// INT       = 'gold'
+// DOUBLE    = 'diamond'
+// LONG      = 'emerald'
+// CHAR      = 'iron'
+// STRING    = 'chain'
+// ARRAY     = 'chest'
+// TRUE      = 'powered'
+// FALSE     = 'unpowered'
+// ASSIGN    = '#'    (dodela)
+// SEPARATOR = ':'    (kraj naredbe / deklaracije)
+// ---------------------------------------------------------------------------
+
+
+// =================== TOP LEVEL ===================
+
+program =
+    { top_item }
+    EOF
+;
+// ceo program se sastoji od niza top-level elemenata i završava se EOF-om
+
+top_item =
+      func_def          // definicija funkcije (mine ...)
+    | class_def         // definicija klase (fortress ...)
+    | global_var_decl   // globalna promenljiva
+;
+
+global_var_decl =
+    var_decl SEPARATOR
+;
+// deklaracija globalne promenljive, npr:
+// gold a#5:
+
+
+// =================== TIPOVI I PROMENLJIVE ===================
+
+type_primitive =
+      BOOLEAN   // redstone
+    | INT       // gold
+    | DOUBLE    // diamond
+    | LONG      // emerald
+    | CHAR      // iron
+    | STRING    // chain
+;
+
+type =
+      type_primitive
+    | ARRAY '<' type '>'
+;
+// ARRAY je chest<tip>; dozvoljavamo ugnježdene tipove, npr:
+// chest<gold>, chest<chest<gold>> ...
+
+var_decl =
+    type var_decl_list
+;
+// npr: gold a#5, b, c#10
+
+var_decl_list =
+    var_one { COMMA var_one }
+;
+
+var_one =
+    IDENTIFICATOR [ ASSIGN expr ]
+;
+// ASSIGN je '#', npr:
+// gold a#5:   -> type=gold, name=a, ASSIGN 5
+// chain s#"Oof":
+
+
+// =================== FUNKCIJE ===================
+
+func_def =
+    FUNCTION IDENTIFICATOR LPAREN [ params ] RPAREN
+        block
+;
+// npr: mine sabiranje(gold a, gold b) { ... }
+
+params =
+    param { COMMA param }
+;
+
+param =
+    type IDENTIFICATOR
+;
+// npr: gold a, chain ime
+
+
+return_stmt =
+    RETURN expr
+;
+// npr: loot a + b:
+
+
+// =================== KLASE (fortress) ===================
+
+class_def =
+    CLASS IDENTIFICATOR [ EXTENDS IDENTIFICATOR ]
+        class_body
+;
+// npr: fortress Igrac { ... }
+// fortress Klasa2 extends Klasa1 { ... }
+
+class_body =
+    LBRACE { class_member } RBRACE
+;
+
+class_member =
+      func_def        // metode
+    | var_decl_stmt   // polja klase
+;
+
+var_decl_stmt =
+    var_decl SEPARATOR
+;
+// lokalna / članska deklaracija kao naredba
+
+
+// =================== BLOKOVI I NAREDBE ===================
+
+block =
+    LBRACE { stmt SEPARATOR } RBRACE
+;
+// blok između { i }, svaka naredba se završava sa ':' (SEPARATOR)
+
+stmt =
+      var_decl        // lokalna deklaracija, npr gold x#5:
+    | assign_stmt
+    | incdec_stmt
+    | call_stmt
+    | return_stmt
+    | if_stmt
+    | for_stmt
+    | while_stmt
+    | do_stmt
+;
+// sve vrste naredbi koje su dozvoljene u bloku
+
+
+// =================== DODELA I INC/DEC ===================
+
+lvalue =
+    IDENTIFICATOR { LBRACKET expr RBRACKET }
+;
+// promenljiva ili element niza, npr:
+// a, niz[0], matrica[i][j]
+
+assign_stmt =
+    lvalue ASSIGN expr
+;
+// npr: a#5: ili a#b + 1:
+
+incdec_stmt =
+      lvalue INC   // x++
+    | lvalue DEC   // x--
+;
+
+
+// =================== POZIVI FUNKCIJA ===================
+
+postfix =
+    IDENTIFICATOR
+    { DOT IDENTIFICATOR
+    | LBRACKET expr RBRACKET
+    }
+;
+// identifikator, mogući pristup polju ili elementu niza:
+// steve, steve.predstavi, niz[i], obj.polje itd.
+
+call_expr =
+    postfix LPAREN [ args ] RPAREN
+;
+// npr: collect("tekst"), drop("..."), steve.predstavi()
+
+args =
+    expr { COMMA expr }
+;
+
+call_stmt =
+    call_expr
+;
+// poziv funkcije kao naredba, npr:
+// collect("Zbir je " + zbir):
+
+
+// =================== KONTROLNE STRUKTURE ===================
+
+// dig = IF, bedrock = ELSE, deeper = ELSEIF
+
+if_stmt =
+    IF LPAREN cond RPAREN
+        block
+    { ELSEIF LPAREN cond RPAREN block }
+    [ ELSE block ]
+;
+// npr:
+// dig (aktivan) { ... }
+// deeper (drugi_uslov) { ... }   // ELSEIF
+// bedrock { ... }                // ELSE
+
+
+// craft = FOR petlja sa tri dela razdvojenim ':'
+
+for_stmt =
+    FOR LPAREN
+        for_init SEPARATOR
+        cond     SEPARATOR
+        for_update
+    RPAREN
+        block
+;
+// npr:
+// craft (gold au#0: au < 10: au#au + 1) { collect(au): }
+
+for_init =
+    var_decl
+;
+// npr: gold au#0
+
+for_update =
+      assign_stmt   // au#au + 1
+    | incdec_stmt   // au++ ili au--
+
+
+// build = WHILE
+
+while_stmt =
+    WHILE LPAREN cond RPAREN
+        block
+;
+// npr: build(au < 10) { ... }
+
+
+// do build = DO-WHILE
+
+do_stmt =
+    DO
+        block
+    WHILE LPAREN cond RPAREN
+;
+// npr:
+// do {
+//     ...
+// }build(au < 10):
+
+
+// =================== IZRAZI ===================
+
+expr =
+    ternary_expr
+;
+// opšti izraz
+
+
+ternary_expr =
+    or_expr [ TQUESTION expr TSEMICOLON expr ]
+;
+// uslov ? expr_if_true ; expr_if_false
+// npr: uslov ? a ; b
+
+
+cond =
+    or_expr
+;
+// uslovi u if/while/for/do-while
+
+
+or_expr =
+    and_expr { OR and_expr }
+;
+
+and_expr =
+    bit_or_expr { AND bit_or_expr }
+;
+
+bit_or_expr =
+    bit_and_expr { BIT_OR bit_and_expr }
+;
+
+bit_and_expr =
+    shift_expr { BIT_AND shift_expr }
+;
+
+shift_expr =
+    equality_expr { (BIT_LSHIFT | BIT_RSHIFT) equality_expr }
+;
+
+equality_expr =
+    relational_expr { (EQ | NEQ) relational_expr }
+;
+
+relational_expr =
+    additive_expr { (LT | LE | GT | GE) additive_expr }
+;
+
+additive_expr =
+    multiplicative_expr { (ADD | SUBTRACT) multiplicative_expr }
+;
+
+multiplicative_expr =
+    unary_expr { (MULTIPLY | DIVIDE | PERCENT) unary_expr }
+;
+
+unary_expr =
+      NOT unary_expr
+    | SUBTRACT unary_expr   // unarni minus
+    | primary
+;
+
+
+// =================== ATOMI ===================
+
+primary =
+      literal
+    | call_expr
+    | postfix          // steve.predstavi bez poziva ako je dozvoljeno
+    | LPAREN expr RPAREN
+;
+
+literal =
+      INT_LIT
+    | DOUBLE_LIT
+    | LONG_LIT
+    | CHAR_LIT
+    | STRING_LIT
+    | TRUE
+    | FALSE
+    | array_literal
+;
+
+array_literal =
+    LBRACKET [ expr { COMMA expr } ] RBRACKET
+;
+// npr: [1, 2, 3], ['a', 'b'], ["x", "y"]

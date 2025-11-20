@@ -52,19 +52,15 @@ public final class ParserAst {
         return new Ast.Program(true, items);
     }
 
-
     private Ast.TopItem parseTopItem() {
         if (check(FUNCTION)) {
-            Ast.TopItem func = parseFuncDef();
-            return func;
+            return parseFuncDef();
         }
         if (check(CLASS)) {
-            Ast.TopItem klasa  = parseClassDef();
-            return klasa;
+            return parseClassDef();
         }
-        Ast.TopItem varDecl = new Ast.TopVarDecl(parseVarDecl());
-        consume(SEPARATOR, "Expected ':' after top-level item"); // samo promenljive
-        return varDecl;
+        // samo vrati VarDecl, bez ':' ovde
+        return new Ast.TopVarDecl(parseVarDecl());
     }
 
 
@@ -95,8 +91,11 @@ public final class ParserAst {
         List<Ast.TopItem> items = new ArrayList<>();
         consume(LBRACE, "Expected '{' at class body start");
         while (!check(RBRACE) && !check(EOF)) {
-            items.add(parseTopItem());
-            consume(SEPARATOR, "Expected ';' after class body item");
+            Ast.TopItem it = parseTopItem();
+            if (it instanceof Ast.TopVarDecl) {
+                consume(SEPARATOR, "Expected ':' after class field");
+            }
+            items.add(it);
         }
         consume(RBRACE, "Expected '}' at class body end");
         return items;
@@ -152,33 +151,39 @@ public final class ParserAst {
         return new Ast.Type(kind, t, 0);
     }
 
-
     private Stmt.VarDecl parseVarDecl() {
         Ast.Type type = parseType();
 
         List<Expr> dims = new ArrayList<>();
-        if (match(LBRACKET)) {
+        while (match(LBRACKET)) {
             dims.add(parseExpr());
             consume(RBRACKET, "expected ']'");
-            while (match(LBRACKET)) {
-                dims.add(parseExpr());
-                consume(RBRACKET, "expected ']'");
-            }
         }
 
         List<Token> names = new ArrayList<>();
         List<Expr> values = new ArrayList<>();
-        do {
-            Token id = consume(IDENTIFICATOR, "expected variable name");
-            Expr value = null;
-            if (match(ASSIGN)) { // obradi #
+
+        // prvi ident
+        Token id = consume(IDENTIFICATOR, "expected variable name");
+        Expr value = null;
+        if (match(ASSIGN)) { // '#'
+            value = parseExpr();
+        }
+        names.add(id);
+        values.add(value);
+
+        // , a, b, c...
+        while (match(COMMA)) {
+            id = consume(IDENTIFICATOR, "expected variable name after ','");
+            value = null;
+            if (match(ASSIGN)) {
                 value = parseExpr();
             }
             names.add(id);
             values.add(value);
-            consume(SEPARATOR, "expected ':' after variable declaration");
-        } while (match(COMMA));
+        }
 
+        // NEMA SEPARATOR-a ovde!
         return new Stmt.VarDecl(dims, names, values);
     }
 
@@ -196,39 +201,55 @@ public final class ParserAst {
     private List<Stmt> parseBlock() {
         List<Stmt> stmts = new ArrayList<>();
 
-        if (match(LBRACE)) { // blok sa {}
-            while (!check(RBRACE) && !check(EOF)) {
-                stmts.add(parseStmt());
-                match(SEPARATOR); // ':'
-            }
-            consume(RBRACE, "Expected '}' at end of block");
-        } else { // inline blok sa :
-            while (!check(EOF) && !check(RBRACE) && !isNextBlockEnd()) {
-                stmts.add(parseStmt());
-                consume(SEPARATOR, "expected ':' after statement");
-            }
+        consume(LBRACE, "Expected '{' at start of block");
+        while (!check(RBRACE) && !check(EOF)) {
+            stmts.add(parseStmt());
+            consume(SEPARATOR, "expected ':' after statement");
         }
-
+        consume(RBRACE, "Expected '}' at end of block");
 
         return stmts;
     }
 
+    private boolean isTypeStart() {
+        TokenType t = peek().type;
+        return t == INT
+                || t == BOOLEAN
+                || t == DOUBLE
+                || t == LONG
+                || t == CHAR
+                || t == STRING
+                || t == ARRAY;
+    }
+
     private Stmt parseStmt() {
-        if (check(INT)) return parseVarDecl();
-        if (check(IDENTIFICATOR)) {
-            if (checkNext(ASSIGN)) return parseAssignStmt();
-            if (checkNext(INC)  || checkNext(DEC)) return parseIncDecStmt();
-            return parseCallAndMaybeAssign();
+        if (isTypeStart()) {
+            // lokalna deklaracija: gold a#5, b:
+            return parseVarDecl();
         }
+
+        if (check(IDENTIFICATOR)) {
+            // lvalue ASSIGN expr
+            if (checkNext(ASSIGN)) return parseAssignStmt();
+
+            // lvalue INC / DEC
+            if (checkNext(INC) || checkNext(DEC)) return parseIncDecStmt();
+
+            // inače: poziv funkcije (collect, drop, neka tvoja funkcija...)
+            return parseCallStmt();
+        }
+
         switch (peek().type) {
             case RETURN: return parseReturnStmt();
-            case IF: return parseIfTailAfterIF();
-            case FOR: return parseForTailAfterFOR();
-            case WHILE: return parseWhileStmt();
-            case DO: return parseDoWhileStmt();
-            default: throw error(peek(), "Unexpected statement");
+            case IF:     return parseIfStmt();
+            case FOR:    return parseForTailAfterFOR(); // o ovome dole
+            case WHILE:  return parseWhileStmt();
+            case DO:     return parseDoWhileStmt();
+            default:
+                throw error(peek(), "Unexpected statement");
         }
     }
+
 
     private Stmt parseIncDecStmt() {
         Stmt.LValue target = parseLValue();
@@ -258,30 +279,31 @@ public final class ParserAst {
         return new Stmt.DoWhileStmt(body, cond);
     }
 
-    private Stmt.BeginIf parseIfTailAfterIF() {
-        Expr cond = null;
-        if (!check(SEPARATOR) && !check(LBRACE)) {
-            cond = parseCond(); // postoji uslov
-        }
+    private Stmt.BeginIf parseIfStmt() {
+        consume(IF, "expected 'dig' (IF)");
 
-        List<Stmt> ifBlock = parseBlock(); // podržava {} ili :
+        consume(LPAREN, "expected '(' after IF");
+        Expr cond = parseCond();
+        consume(RPAREN, "expected ')' after IF condition");
 
+        List<Stmt> ifBlock = parseBlock();
         Stmt.BeginIf.Arm ifArm = new Stmt.BeginIf.Arm(cond, ifBlock);
 
         List<Stmt.BeginIf.Arm> orArms = new ArrayList<>();
-        while (match(OR)) { // OR IF
-            consume(ELSEIF, "expected 'deeper' for ELSEIF");
-            Expr c = null;
-            if (!check(SEPARATOR) && !check(LBRACE)) {
-                c = parseCond();
-            }
+        // deeper = ELSEIF
+        while (match(ELSEIF)) {
+            consume(LPAREN, "expected '(' after deeper");
+            Expr c = parseCond();
+            consume(RPAREN, "expected ')' after deeper condition");
             List<Stmt> b = parseBlock();
             orArms.add(new Stmt.BeginIf.Arm(c, b));
         }
 
         List<Stmt> elseBlock = null;
-        if (match(ELSE)) // else
+        // bedrock = ELSE
+        if (match(ELSE)) {
             elseBlock = parseBlock();
+        }
 
         return new Stmt.BeginIf(ifArm, orArms, elseBlock);
     }
@@ -289,6 +311,7 @@ public final class ParserAst {
 
 
     private Stmt.BeginFor parseForTailAfterFOR() {
+        consume(FOR, "expected 'craft' (FOR)");
         consume(LPAREN, "expected '(' after FOR");
         Token var = consume(IDENTIFICATOR, "expected loop variable");
         consume(LPAREN, "expected '(' before for range");
@@ -298,48 +321,58 @@ public final class ParserAst {
         return new Stmt.BeginFor(var, from, body);
     }
 
+
     private Stmt parseReturnStmt() {
         consume(RETURN, "expected RETURN");
         Expr e = parseExpr();
         return new Stmt.Return(e);
     }
 
-    private Stmt parseCallAndMaybeAssign() {
+    private Stmt parseCallStmt() {
         Expr.Call callExpr;
+
         if (match(PRINT)) {
+            // collect(...)
             Token callee = previous();
             consume(LPAREN, "expected '(' after PRINT");
             List<Expr> args = new ArrayList<>();
-            args.add(parseExpr());
+            if (!check(RPAREN)) {
+                args.add(parseExpr());
+                while (match(COMMA)) {
+                    args.add(parseExpr());
+                }
+            }
             consume(RPAREN, "expected ')' after PRINT");
             callExpr = new Expr.Call(null, callee, args);
         } else if (match(SCAN)) {
+            // drop(...)
             Token callee = previous();
             consume(LPAREN, "expected '(' after SCAN");
-            Token id = consume(IDENTIFICATOR, "expected identifier in SCAN");
-            consume(RPAREN, "expected ')' after SCAN");
             List<Expr> args = new ArrayList<>();
-            args.add(new Expr.Ident(id));
+            if (!check(RPAREN)) {
+                args.add(parseExpr());
+                while (match(COMMA)) {
+                    args.add(parseExpr());
+                }
+            }
+            consume(RPAREN, "expected ')' after SCAN");
             callExpr = new Expr.Call(null, callee, args);
         } else {
+            // običan poziv: ident(...)
             callExpr = (Expr.Call) parseCallExpr();
         }
 
-        if (match(ASSIGN)) {
-            Stmt.LValue lv = parseLValue();
-            return new Stmt.Assign(callExpr, lv);
-        }
         return new Stmt.CallStmt(callExpr);
     }
 
-
-
     private Stmt parseAssignStmt() {
-        Expr left = parseExprNoCall();
-        consume(ASSIGN, "expected '->'");
-        Stmt.LValue lv = parseLValue();
-        return new Stmt.Assign(left, lv);
+        // trenutno smo na IDENTIFICATOR (provereno u parseStmt)
+        Stmt.LValue lv = parseLValue();              // pojede IDENT i eventualne [expr]
+        consume(ASSIGN, "expected '#'");
+        Expr value = parseExpr();                    // desna strana dodele
+        return new Stmt.Assign(value, lv);           // value ide u s.left, lv u s.lvalue
     }
+
 
     private Stmt.LValue parseLValue() {
         Token id = consume(IDENTIFICATOR, "expected identifier");
@@ -435,9 +468,12 @@ public final class ParserAst {
     private List<Expr> parseArgs() {
         List<Expr> args = new ArrayList<>();
         args.add(parseExpr());
-        while (match(SEPARATOR)) args.add(parseExpr());
+        while (match(COMMA)) {
+            args.add(parseExpr());
+        }
         return args;
     }
+
 
     private Expr parseCond() {
         Expr left = parseAExpr();
