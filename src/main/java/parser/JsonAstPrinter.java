@@ -14,6 +14,16 @@ public final class JsonAstPrinter implements
 
     private static final ObjectMapper M = new ObjectMapper();
 
+    @Override
+    public JsonNode visitUnary(Expr.Unary e) {
+        ObjectNode o = M.createObjectNode();
+        o.put("type", "unary");
+        o.put("op", e.op.lexeme);       // npr. "!"
+        o.set("right", e.right.accept(this));
+        return o;
+    }
+
+
     public String print(Ast.Program p) {
         try {
             ObjectNode root = M.createObjectNode();
@@ -133,9 +143,17 @@ public final class JsonAstPrinter implements
         ArrayNode dims = M.createArrayNode();
         for (Expr d : s.dims) dims.add(d.accept(this));
         o.set("dims", dims);
+
         ArrayNode names = M.createArrayNode();
         for (var t : s.names) names.add(t.lexeme);
         o.set("names", names);
+
+        ArrayNode values = M.createArrayNode();
+        for(Expr v: s.values) {
+                values.add(v.accept(this));
+        }
+        o.set("values", values);
+
         return o;
     }
 

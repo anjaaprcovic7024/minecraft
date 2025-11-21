@@ -462,11 +462,16 @@ public final class ParserAst {
     private Expr parseExprNoCall() {
         return parseAExpr();
     }
-
     private Expr parseAtom() {
-        // parsira osnovne izraze: literale, identifikatore, array, funkcije
+        // unary NOT operator
+        if (match(NOT)) {
+            Token op = previous();
+            Expr right = parseAtom();  // NOT je unarni, parsiramo odmah operand
+            return new Expr.Unary(op, right);
+        }
+
+        // array literal
         if (match(LBRACKET)) {
-            // array literal
             List<Expr> elems = new ArrayList<>();
             if (!check(RBRACKET)) {
                 elems.add(parseExpr());
@@ -478,10 +483,10 @@ public final class ParserAst {
             return new Expr.ArrayLiteral(elems);
         }
 
+        // identifikatori i pozivi funkcija
         if (match(IDENTIFICATOR)) {
             Token id = previous();
             if (check(LPAREN)) {
-                // poziv funkcije
                 consume(LPAREN, "expected '(' after function name");
                 List<Expr> args = new ArrayList<>();
                 if (!check(RPAREN)) {
@@ -491,31 +496,33 @@ public final class ParserAst {
                 consume(RPAREN, "expected ')' after function call");
                 return new Expr.Call(null, id, args);
             }
-            // pristup elementu niza
             List<Expr> idx = new ArrayList<>();
             while (match(LBRACKET)) {
                 idx.add(parseExpr());
                 consume(RBRACKET, "expected ']'");
             }
             if (!idx.isEmpty()) return new Expr.Index(id, idx);
-
             return new Expr.Ident(id);
         }
 
-        // parsiranje literal-a
-        if (match(INT_LIT)) return new Expr.IntLiteral(previous(), (Integer) previous().literal);
+        // literali
+        if (match(INT_LIT)){
+            Token t = previous();
+            return new Expr.IntLiteral(t, (Integer) t.literal);
+        }
         if (match(DOUBLE_LIT)) return new Expr.DoubleLiteral(previous(), (Double) previous().literal);
         if (match(TRUE)) return new Expr.BooleanLiteral(previous(), true);
         if (match(FALSE)) return new Expr.BooleanLiteral(previous(), false);
 
         if (match(LPAREN)) {
-            Expr inner = parseExpr(); // grupisani izraz
+            Expr inner = parseExpr();
             consume(RPAREN, "expected ')'");
             return new Expr.Grouping(inner);
         }
 
         throw error(peek(), "expected expression");
     }
+
 
 
     private List<Expr> parseArgs() {

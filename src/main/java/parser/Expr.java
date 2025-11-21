@@ -19,9 +19,24 @@ public abstract class Expr {
         R visitGrouping(Grouping e);
         R visitCall(Call e);
         R visitBinary(Binary e);
+        R visitUnary(Unary e);
     }
 
     public abstract <R> R accept(Visitor<R> v);
+
+    public static final class Unary extends Expr {
+        public final Token op;    // NOT ili drugi unarni operator
+        public final Expr right;  // operand
+        public Unary(Token op, Expr right) {
+            this.op = op;
+            this.right = right;
+        }
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitUnary(this);
+        }
+    }
+
 
     // ===== LITERALI =====
 

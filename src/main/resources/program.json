@@ -1,0 +1,32 @@
+{
+  "type" : "program",
+  "explicitProgram" : true,
+  "items" : [ {
+    "kind" : "topVarDecl",
+    "decl" : {
+      "stmt" : "varDecl",
+      "dims" : [ ],
+      "names" : [ "b" ],
+      "values" : [ {
+        "type" : "binary",
+        "op" : "*",
+        "left" : {
+          "type" : "binary",
+          "op" : "+",
+          "left" : {
+            "type" : "int",
+            "value" : 2
+          },
+          "right" : {
+            "type" : "int",
+            "value" : 5
+          }
+        },
+        "right" : {
+          "type" : "int",
+          "value" : 3
+        }
+      } ]
+    }
+  } ]
+}

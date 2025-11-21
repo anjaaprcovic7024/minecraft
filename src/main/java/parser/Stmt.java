@@ -22,7 +22,7 @@ public abstract class Stmt {
 
     // int[...] a, b, c
     public static final class VarDecl extends Stmt {
-        public final Ast.Type type;          // dodato
+        public final Ast.Type type;
         public final List<Expr> dims;
         public final List<Token> names;
         public final List<Expr> values;
