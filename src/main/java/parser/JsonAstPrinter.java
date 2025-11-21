@@ -72,6 +72,17 @@ public final class JsonAstPrinter implements
 
     // ===== Expr.Visitor =====
 
+    @Override
+    public JsonNode visitArrayLiteral(Expr.ArrayLiteral e) {
+        ObjectNode o = M.createObjectNode();
+        o.put("type", "array");
+        ArrayNode elems = M.createArrayNode();
+        for (Expr ex : e.elements) elems.add(ex.accept(this));
+        o.set("elements", elems);
+        return o;
+    }
+
+
     @Override public JsonNode visitIdent(Expr.Ident e) {
         ObjectNode o = M.createObjectNode();
         o.put("type", "ident");
@@ -186,14 +197,18 @@ public final class JsonAstPrinter implements
 
     @Override public JsonNode visitBeginFor(Stmt.BeginFor s) {
         ObjectNode o = M.createObjectNode();
-        o.put("stmt", "begin_for");
-        o.put("var", s.var.lexeme);
-        o.set("from", s.from.accept(this));
+        o.put("stmt", "for");
+        o.set("init", s.init.accept(this));
+        o.set("cond", s.cond.accept(this));
+        o.set("update", s.update.accept(this));
         ArrayNode body = M.createArrayNode();
         for (Stmt st : s.body) body.add(st.accept(this));
         o.set("body", body);
         return o;
     }
+
+
+
 
     @Override
     public JsonNode visitIncDec(Stmt.IncDec s) {

@@ -2,6 +2,6 @@ redstone aktivan#powered:
 
 dig (aktivan) {
    collect("Redstone signal je aktivan"):
-} deeper {
+} bedrock {
    collect("Signal nije aktivan"):
 }

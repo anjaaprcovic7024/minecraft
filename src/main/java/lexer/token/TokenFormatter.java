@@ -19,8 +19,8 @@ public final class TokenFormatter {
 
     public static String format(Token t) {
         String typeStr = center(String.valueOf(t.type), 20);
-        String lexStr = center("'" + escape(t.lexeme) + "'", 18);
-        String litStr = center(t.literal == null ? " " : t.literal.toString(), 11);
+        String lexStr = center("'" + escape(t.lexeme) + "'", 30);
+        String litStr = center(t.literal == null ? " " : t.literal.toString(), 30);
         String lineStr = center("line " + t.line, 9);
         String colStr = center("col " + t.colStart + "-" + t.colEnd, 12);
 
@@ -33,8 +33,8 @@ public final class TokenFormatter {
         String header = String.format(
             "|%s|%s|%s|%s|%s|",
             center("TYPE", 20),
-            center("LEXEME", 18),
-            center("LITERAL", 11),
+            center("LEXEME", 30),
+            center("LITERAL", 30),
             center("LINE", 9),
             center("COLUMNS", 12)
         );

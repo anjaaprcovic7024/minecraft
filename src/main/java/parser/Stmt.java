@@ -22,14 +22,23 @@ public abstract class Stmt {
 
     // int[...] a, b, c
     public static final class VarDecl extends Stmt {
+        public final Ast.Type type;          // dodato
         public final List<Expr> dims;
         public final List<Token> names;
-        public final List<Expr> values; // dodato
-        public VarDecl(List<Expr> dims, List<Token> names, List<Expr> values) {
-            this.dims = dims; this.names = names; this.values = values;
+        public final List<Expr> values;
+
+        public VarDecl(Ast.Type type, List<Expr> dims, List<Token> names, List<Expr> values) {
+            this.type = type;
+            this.dims = dims;
+            this.names = names;
+            this.values = values;
         }
-        @Override public <R> R accept(Visitor<R> v) { return v.visitVarDecl(this); }
+
+        @Override
+        public <R> R accept(Visitor<R> v) { return v.visitVarDecl(this); }
     }
+
+
 
 
     public static final class Return extends Stmt {
@@ -67,19 +76,24 @@ public abstract class Stmt {
     }
 
     public static final class BeginFor extends Stmt {
-        public final Token var;        // IDENT
-        public final Expr from;        // aexpr
-        public final List<Stmt> body;  // telo petlje
+        public final Stmt.VarDecl init;
+        public final Expr cond;
+        public final Stmt update;
+        public final List<Stmt> body;
 
-        public BeginFor(Token var, Expr from, List<Stmt> body) {
-            this.var = var;
-            this.from = from;
+        public BeginFor(Stmt.VarDecl init, Expr cond, Stmt update, List<Stmt> body) {
+            this.init = init;
+            this.cond = cond;
+            this.update = update;
             this.body = body;
         }
 
         @Override
         public <R> R accept(Visitor<R> v) { return v.visitBeginFor(this); }
     }
+
+
+
 
     public static final class IncDec extends Stmt {
         public final LValue target;

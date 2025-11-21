@@ -1,6 +1,4 @@
-gold i#0:
-craft (gold i # 0: i < 5: i # i + 1) {
-    collect("Broj " + i):
+craft (gold i#0 : i < 10 : i++:) {
+    collect(i):
+    drop("Zbir je " + i):
 }
-
-

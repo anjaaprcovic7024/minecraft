@@ -1,5 +1,5 @@
-craft (gold i # 0: i < 3: i++:) {
-    dig (i = 1) {
+craft (gems i # 0: i < 3: i++:) {
+    dig (i == 1) {
         collect("Jedan"):
     } bedrock {
         collect(i):

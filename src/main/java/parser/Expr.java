@@ -7,6 +7,7 @@ import java.util.List;
 public abstract class Expr {
 
     public interface Visitor<R> {
+        R visitArrayLiteral(ArrayLiteral e);
         R visitIntLiteral(IntLiteral e);
         R visitDoubleLiteral(DoubleLiteral e);
         R visitLongLiteral(LongLiteral e);
@@ -23,6 +24,13 @@ public abstract class Expr {
     public abstract <R> R accept(Visitor<R> v);
 
     // ===== LITERALI =====
+
+    public static final class ArrayLiteral extends Expr {
+        public final List<Expr> elements;
+        public ArrayLiteral(List<Expr> elements) { this.elements = elements; }
+        @Override public <R> R accept(Visitor<R> v) {return v.visitArrayLiteral(this);}
+    }
+
     public static final class IntLiteral extends Expr {
         public final Token token;
         public final int value;

@@ -39,13 +39,14 @@ public final class ParserAst {
     public ParserAst(List<Token> tokens) { this.tokens = tokens; }
 
     public Ast.Program parseProgram() {
+        // parsira ceo program i vraca AST programa
         List<Ast.TopItem> items = new ArrayList<>();
         while (!check(EOF)) {
             Ast.TopItem item = parseTopItem();
 
-            if (item instanceof Ast.TopVarDecl) {
+            /*if (item instanceof Ast.TopVarDecl) {
                 consume(SEPARATOR, "Expected ':' after top-level variable declaration");
-            }
+            }*/
 
             items.add(item);
         }
@@ -53,18 +54,18 @@ public final class ParserAst {
     }
 
     private Ast.TopItem parseTopItem() {
-        if (check(FUNCTION)) {
-            return parseFuncDef();
+        // parsira jedan top-level element (funkcija, klasa, statement ili varijabla)
+        if (check(FUNCTION)) return parseFuncDef();
+        if (check(CLASS)) return parseClassDef();
+        if (check(FOR) || check(IF) || check(WHILE) || check(DO) || check(RETURN) || check(IDENTIFICATOR)) {
+            return new Ast.TopStmt(parseStmt());
         }
-        if (check(CLASS)) {
-            return parseClassDef();
-        }
-        // samo vrati VarDecl, bez ':' ovde
-        return new Ast.TopVarDecl(parseVarDecl());
+        if (isTypeStart()) return new Ast.TopVarDecl(parseVarDecl());
+        throw error(peek(), "Unexpected top-level item");
     }
 
-
     private Ast.FuncDef parseFuncDef() {
+        // parsira definiciju funkcije i njeno telo
         consume(FUNCTION, "expected FUNCTION");
         Token name = consume(IDENTIFICATOR, "expected function name");
         consume(LPAREN, "expected '('");
@@ -77,6 +78,7 @@ public final class ParserAst {
     }
 
     private Ast.ClassDef parseClassDef() {
+        // parsira definiciju klase i njeno telo
         consume(CLASS, "Expected 'class'");
         Token name = consume(IDENTIFICATOR, "Expected class name");
         Token extendsName = null;
@@ -88,6 +90,7 @@ public final class ParserAst {
     }
 
     private List<Ast.TopItem> parseClassBody() {
+        // parsira sve top-level elemente unutar klase
         List<Ast.TopItem> items = new ArrayList<>();
         consume(LBRACE, "Expected '{' at class body start");
         while (!check(RBRACE) && !check(EOF)) {
@@ -102,6 +105,7 @@ public final class ParserAst {
     }
 
     private List<Ast.Param> parseParams() {
+        // parsira listu parametara funkcije
         List<Ast.Param> params = new ArrayList<>();
         params.add(parseParam());
         while (match(COMMA)) params.add(parseParam());
@@ -109,7 +113,7 @@ public final class ParserAst {
     }
 
     private Ast.Param parseParam() {
-        // prvo tip
+        // parsira pojedinacan parametar i njegov tip
         Token typeToken = consumeOneOf("expected type",
                 INT, BOOLEAN, DOUBLE, LONG, CHAR, STRING, ARRAY);
 
@@ -125,10 +129,8 @@ public final class ParserAst {
             default -> throw error(typeToken, "unknown type");
         }
 
-        // zatim identifikator
         Token name = consume(IDENTIFICATOR, "expected parameter name");
 
-        // preskoci eventualni separator ':'
         match(SEPARATOR);
 
         return new Ast.Param(name, type);
@@ -152,44 +154,101 @@ public final class ParserAst {
     }
 
     private Stmt.VarDecl parseVarDecl() {
-        Ast.Type type = parseType();
+        return parseVarDecl(true);
+    }
 
+    private Stmt.VarDecl parseVarDecl(boolean expectSeparator) {
+        // parsira deklaraciju promenljive sa opcionalnim inicijalizatorom i dimenzijama
+        Ast.Type type;
+
+        // ako je array token, parsiramo tip i unutrasnji tip
+        if (match(ARRAY)) {
+            Token arrayToken = previous();
+            Ast.Type.Kind innerKind = Ast.Type.Kind.INT; // podrazumevani unutrasnji tip
+
+            // parsira unutrasnji tip niza ako postoji
+            if (match(LBRACKET)) {
+                Token innerTypeToken = consumeOneOf(
+                        "expected type inside array",
+                        INT, BOOLEAN, DOUBLE, LONG, CHAR, STRING
+                );
+                switch (innerTypeToken.type) {
+                    case INT -> innerKind = Ast.Type.Kind.INT;
+                    case BOOLEAN -> innerKind = Ast.Type.Kind.BOOLEAN;
+                    case DOUBLE -> innerKind = Ast.Type.Kind.DOUBLE;
+                    case LONG -> innerKind = Ast.Type.Kind.LONG;
+                    case CHAR -> innerKind = Ast.Type.Kind.CHAR;
+                    case STRING -> innerKind = Ast.Type.Kind.STRING;
+                }
+                consume(RBRACKET, "expected ']' after array inner type");
+            }
+
+            type = new Ast.Type(Ast.Type.Kind.ARRAY, arrayToken, 1);
+            type.inner = innerKind; // cuvamo unutrasnji tip
+        } else {
+            type = parseType(); // standardni tip promenljive
+        }
+
+        // parsira dimenzije ako je vise-dimenzionalni niz
         List<Expr> dims = new ArrayList<>();
         while (match(LBRACKET)) {
-            dims.add(parseExpr());
-            consume(RBRACKET, "expected ']'");
+            dims.add(parseExpr()); // dodajemo izraz za dimenziju
+            consume(RBRACKET, "expected ']' after dimension");
         }
 
         List<Token> names = new ArrayList<>();
         List<Expr> values = new ArrayList<>();
 
-        // prvi ident
         Token id = consume(IDENTIFICATOR, "expected variable name");
         Expr value = null;
-        if (match(ASSIGN)) { // '#'
-            value = parseExpr();
+
+        // inicijalizacija promenljive (moze biti literal ili array literal)
+        if (match(ASSIGN)) {
+            if (match(LBRACKET)) {
+                // parsiramo array literal sa vise elemenata
+                List<Expr> elems = new ArrayList<>();
+                if (!check(RBRACKET)) {
+                    elems.add(parseExpr());
+                    while (match(COMMA)) { // vise elemenata razdvojeno zarezom
+                        elems.add(parseExpr());
+                    }
+                }
+                consume(RBRACKET, "expected ']' after array literal");
+                value = new Expr.ArrayLiteral(elems);
+            } else {
+                value = parseExpr(); // standardni inicijalizator
+            }
         }
+
         names.add(id);
         values.add(value);
 
-        // , a, b, c...
+        // parsiranje vise deklaracija odvojeno zarezom (npr: int a=1, b=2)
         while (match(COMMA)) {
             id = consume(IDENTIFICATOR, "expected variable name after ','");
             value = null;
             if (match(ASSIGN)) {
-                value = parseExpr();
+                if (match(LBRACKET)) {
+                    List<Expr> elems = new ArrayList<>();
+                    if (!check(RBRACKET)) {
+                        elems.add(parseExpr());
+                        while (match(COMMA)) {
+                            elems.add(parseExpr());
+                        }
+                    }
+                    consume(RBRACKET, "expected ']' after array literal");
+                    value = new Expr.ArrayLiteral(elems);
+                } else {
+                    value = parseExpr();
+                }
             }
             names.add(id);
             values.add(value);
         }
 
-        // NEMA SEPARATOR-a ovde!
-        return new Stmt.VarDecl(dims, names, values);
+        if (expectSeparator) consume(SEPARATOR, "expected ':' after statement");
+        return new Stmt.VarDecl(type, dims, names, values);
     }
-
-
-
-
 
     private List<Token> parseIdentList() {
         List<Token> ids = new ArrayList<>();
@@ -200,14 +259,11 @@ public final class ParserAst {
 
     private List<Stmt> parseBlock() {
         List<Stmt> stmts = new ArrayList<>();
-
         consume(LBRACE, "Expected '{' at start of block");
         while (!check(RBRACE) && !check(EOF)) {
             stmts.add(parseStmt());
-            consume(SEPARATOR, "expected ':' after statement");
         }
         consume(RBRACE, "Expected '}' at end of block");
-
         return stmts;
     }
 
@@ -223,41 +279,38 @@ public final class ParserAst {
     }
 
     private Stmt parseStmt() {
-        if (isTypeStart()) {
-            // lokalna deklaracija: gold a#5, b:
-            return parseVarDecl();
+        // parsira jedan statement i odredjuje koji tip statement-a je u pitanju
+        switch (peek().type) {
+            case FOR:    return parseForStmt();
+            case IF:     return parseIfStmt();
+            case WHILE:  return parseWhileStmt();
+            case DO:     return parseDoWhileStmt();
+            case RETURN: return parseReturnStmt();
         }
 
-        if (check(IDENTIFICATOR)) {
-            // lvalue ASSIGN expr
-            if (checkNext(ASSIGN)) return parseAssignStmt();
+        if (isTypeStart()) return parseVarDecl();  // ako pocinje tipom, parsiramo varijablu
 
-            // lvalue INC / DEC
-            if (checkNext(INC) || checkNext(DEC)) return parseIncDecStmt();
-
-            // inače: poziv funkcije (collect, drop, neka tvoja funkcija...)
+        if (peek().type == PRINT || peek().type == SCAN) {
             return parseCallStmt();
         }
 
-        switch (peek().type) {
-            case RETURN: return parseReturnStmt();
-            case IF:     return parseIfStmt();
-            case FOR:    return parseForTailAfterFOR(); // o ovome dole
-            case WHILE:  return parseWhileStmt();
-            case DO:     return parseDoWhileStmt();
-            default:
-                throw error(peek(), "Unexpected statement");
+        if (check(IDENTIFICATOR)) {
+            if (checkNext(LPAREN)) return parseCallStmt(); // funkcija
+            if (checkNext(ASSIGN)) return parseAssignStmt();  // dodela
+            if (checkNext(INC) || checkNext(DEC)) return parseIncDecStmt(); // ++/--
+            return parseCallStmt(); // default fallback
         }
-    }
 
+        throw error(peek(), "Unexpected statement");
+    }
 
     private Stmt parseIncDecStmt() {
         Stmt.LValue target = parseLValue();
         Token op;
         if (check(INC) || check(DEC)) op = advance();
         else throw error(peek(), "Expected '++' or '--'");
+        consume(SEPARATOR, "expected ':' after inc/dec");
         return new Stmt.IncDec(target, op);
-
     }
 
     private Stmt parseWhileStmt() {
@@ -276,6 +329,7 @@ public final class ParserAst {
         consume(LPAREN, "Expected '(' after while");
         Expr cond = parseCond();
         consume(RPAREN, "Expected ')' after do-while condition");
+        consume(SEPARATOR, "expected ':' after do-while");
         return new Stmt.DoWhileStmt(body, cond);
     }
 
@@ -290,7 +344,6 @@ public final class ParserAst {
         Stmt.BeginIf.Arm ifArm = new Stmt.BeginIf.Arm(cond, ifBlock);
 
         List<Stmt.BeginIf.Arm> orArms = new ArrayList<>();
-        // deeper = ELSEIF
         while (match(ELSEIF)) {
             consume(LPAREN, "expected '(' after deeper");
             Expr c = parseCond();
@@ -300,7 +353,6 @@ public final class ParserAst {
         }
 
         List<Stmt> elseBlock = null;
-        // bedrock = ELSE
         if (match(ELSE)) {
             elseBlock = parseBlock();
         }
@@ -308,23 +360,32 @@ public final class ParserAst {
         return new Stmt.BeginIf(ifArm, orArms, elseBlock);
     }
 
+    private Stmt parseForStmt() {
+        // parsira for/craft petlju sa inicijalizacijom, uslovom i update delom
+        consume(FOR, "expected 'craft'");
+        consume(LPAREN, "expected '(' after craft");
 
+        Stmt.VarDecl forInit = parseVarDecl(false); // parsira for-inicijalizaciju
+        consume(SEPARATOR, "expected ':' after for-init");
 
-    private Stmt.BeginFor parseForTailAfterFOR() {
-        consume(FOR, "expected 'craft' (FOR)");
-        consume(LPAREN, "expected '(' after FOR");
-        Token var = consume(IDENTIFICATOR, "expected loop variable");
-        consume(LPAREN, "expected '(' before for range");
-        Expr from = parseExpr(); // samo jedan izraz za granicu
-        consume(RPAREN, "expected ')' after for range");
-        List<Stmt> body = parseBlock();
-        return new Stmt.BeginFor(var, from, body);
+        Expr cond = parseCond(); // parsira uslov petlje
+        consume(SEPARATOR, "expected ':' after for-cond");
+
+        // parsira for-update deo, moze biti dodela ili ++/--
+        Stmt update;
+        if (check(IDENTIFICATOR) && checkNext(ASSIGN)) update = parseAssignStmt();
+        else if (check(IDENTIFICATOR) && (checkNext(INC) || checkNext(DEC))) update = parseIncDecStmt();
+        else throw error(peek(), "expected for-update statement");
+
+        consume(RPAREN, "expected ')' after for header");
+        List<Stmt> body = parseBlock(); // parsira telo petlje
+        return new Stmt.BeginFor(forInit, cond, update, body);
     }
-
 
     private Stmt parseReturnStmt() {
         consume(RETURN, "expected RETURN");
         Expr e = parseExpr();
+        consume(SEPARATOR, "expected ':' after return");
         return new Stmt.Return(e);
     }
 
@@ -332,7 +393,6 @@ public final class ParserAst {
         Expr.Call callExpr;
 
         if (match(PRINT)) {
-            // collect(...)
             Token callee = previous();
             consume(LPAREN, "expected '(' after PRINT");
             List<Expr> args = new ArrayList<>();
@@ -345,7 +405,6 @@ public final class ParserAst {
             consume(RPAREN, "expected ')' after PRINT");
             callExpr = new Expr.Call(null, callee, args);
         } else if (match(SCAN)) {
-            // drop(...)
             Token callee = previous();
             consume(LPAREN, "expected '(' after SCAN");
             List<Expr> args = new ArrayList<>();
@@ -358,19 +417,21 @@ public final class ParserAst {
             consume(RPAREN, "expected ')' after SCAN");
             callExpr = new Expr.Call(null, callee, args);
         } else {
-            // običan poziv: ident(...)
-            callExpr = (Expr.Call) parseCallExpr();
+            Expr e = parseAtom();
+            if (!(e instanceof Expr.Call)) throw error(peek(), "expected function call");
+            callExpr = (Expr.Call) e;
         }
 
+        consume(SEPARATOR, "expected ':' after call statement");
         return new Stmt.CallStmt(callExpr);
     }
 
+
     private Stmt parseAssignStmt() {
-        // trenutno smo na IDENTIFICATOR (provereno u parseStmt)
-        Stmt.LValue lv = parseLValue();              // pojede IDENT i eventualne [expr]
+        Stmt.LValue lv = parseLValue();
         consume(ASSIGN, "expected '#'");
-        Expr value = parseExpr();                    // desna strana dodele
-        return new Stmt.Assign(value, lv);           // value ide u s.left, lv u s.lvalue
+        Expr value = parseExpr();
+        return new Stmt.Assign(value, lv);
     }
 
 
@@ -385,10 +446,10 @@ public final class ParserAst {
     }
 
     // ===== expressions =====
-    // expr = aexpr ;
     private Expr parseExpr() { return parseAExpr(); }
 
     private Expr parseAExpr() {
+        // parsira binarne izraze sa operatorima
         Expr left = parseAtom();
         while (match(ADD, SUBTRACT, MULTIPLY, DIVIDE, PERCENT, CARET)) {
             Token op = previous();
@@ -403,52 +464,52 @@ public final class ParserAst {
     }
 
     private Expr parseAtom() {
-        if (match(INT_LIT)) {
-            Token t = previous();
-            return new Expr.IntLiteral(t, (Integer) t.literal);
-        }
-        if (match(DOUBLE_LIT)) {
-            Token t = previous();
-            return new Expr.DoubleLiteral(t, (Double) t.literal);
-        }
-        if (match(LONG_LIT)) {
-            Token t = previous();
-            return new Expr.LongLiteral(t, (Long) t.literal);
-        }
-        if (match(CHAR_LIT)) {
-            Token t = previous();
-            return new Expr.CharLiteral(t, (Character) t.literal);
-        }
-        if (match(STRING_LIT)) {
-            Token t = previous();
-            return new Expr.StringLiteral(t, (String) t.literal);
-        }
-        if (match(TRUE)) {
-            Token t = previous();
-            return new Expr.BooleanLiteral(t, true);
-        }
-        if (match(FALSE)) {
-            Token t = previous();
-            return new Expr.BooleanLiteral(t, false);
+        // parsira osnovne izraze: literale, identifikatore, array, funkcije
+        if (match(LBRACKET)) {
+            // array literal
+            List<Expr> elems = new ArrayList<>();
+            if (!check(RBRACKET)) {
+                elems.add(parseExpr());
+                while (match(COMMA)) {
+                    elems.add(parseExpr());
+                }
+            }
+            consume(RBRACKET, "expected ']' after array literal");
+            return new Expr.ArrayLiteral(elems);
         }
 
         if (match(IDENTIFICATOR)) {
             Token id = previous();
-            if (match(LBRACKET)) {
-                List<Expr> idx = new ArrayList<>();
+            if (check(LPAREN)) {
+                // poziv funkcije
+                consume(LPAREN, "expected '(' after function name");
+                List<Expr> args = new ArrayList<>();
+                if (!check(RPAREN)) {
+                    args.add(parseExpr());
+                    while (match(COMMA)) args.add(parseExpr());
+                }
+                consume(RPAREN, "expected ')' after function call");
+                return new Expr.Call(null, id, args);
+            }
+            // pristup elementu niza
+            List<Expr> idx = new ArrayList<>();
+            while (match(LBRACKET)) {
                 idx.add(parseExpr());
                 consume(RBRACKET, "expected ']'");
-                while (match(LBRACKET)) {
-                    idx.add(parseExpr());
-                    consume(RBRACKET, "expected ']'");
-                }
-                return new Expr.Index(id, idx);
             }
+            if (!idx.isEmpty()) return new Expr.Index(id, idx);
+
             return new Expr.Ident(id);
         }
 
+        // parsiranje literal-a
+        if (match(INT_LIT)) return new Expr.IntLiteral(previous(), (Integer) previous().literal);
+        if (match(DOUBLE_LIT)) return new Expr.DoubleLiteral(previous(), (Double) previous().literal);
+        if (match(TRUE)) return new Expr.BooleanLiteral(previous(), true);
+        if (match(FALSE)) return new Expr.BooleanLiteral(previous(), false);
+
         if (match(LPAREN)) {
-            Expr inner = parseExpr();
+            Expr inner = parseExpr(); // grupisani izraz
             consume(RPAREN, "expected ')'");
             return new Expr.Grouping(inner);
         }
@@ -456,14 +517,6 @@ public final class ParserAst {
         throw error(peek(), "expected expression");
     }
 
-    private Expr parseCallExpr() {
-        Token callee = consume(IDENTIFICATOR, "expected function name");
-        consume(LPAREN, "expected '('");
-        List<Expr> args = new ArrayList<>();
-        if (!check(RPAREN)) args = parseArgs();
-        consume(RPAREN, "expected ')'");
-        return new Expr.Call(null, callee, args);
-    }
 
     private List<Expr> parseArgs() {
         List<Expr> args = new ArrayList<>();
@@ -473,7 +526,6 @@ public final class ParserAst {
         }
         return args;
     }
-
 
     private Expr parseCond() {
         Expr left = parseAExpr();
@@ -489,7 +541,6 @@ public final class ParserAst {
         }
         return left;
     }
-
 
     // ===== utilities =====
 

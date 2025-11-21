@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// TOKEN MAPIRANJE (komentari, nije deo gramatike)
+// TOKENI:
 // FUNCTION  = 'mine'
 // RETURN    = 'loot'
 // IF        = 'dig'
@@ -21,8 +21,7 @@
 // SEPARATOR = ':'    (kraj naredbe / deklaracije)
 // ---------------------------------------------------------------------------
 
-
-// =================== TOP LEVEL ===================
+// ------------------- TOP LEVEL -------------------
 
 program =
     { top_item }
@@ -35,15 +34,181 @@ top_item =
     | class_def         // definicija klase (fortress ...)
     | global_var_decl   // globalna promenljiva
 ;
+// sve što moze biti na top nivou: funkcija (mine), globalna promenljiva, klasa (fortress)
 
-global_var_decl =
+global_var_decl = var_decl SEPARATOR ;
+// deklaracija globalne promenljive, npr: gold a#5:
+
+// ------------------- FUNKCIJE -------------------
+
+params =
+    param { COMMA param }
+;
+
+param =
+    type IDENTIFICATOR
+;
+// npr: gold a, chain ime
+
+func_def =
+    FUNCTION IDENTIFICATOR LPAREN [ params ] RPAREN
+        block
+;
+// npr: mine sabiranje(gold a, gold b) { ... }
+
+return_stmt =
+    RETURN expr SEPARATOR
+;
+// npr: loot a + b:
+
+// ------------------- KLASE -------------------
+
+class_def =
+    CLASS IDENTIFICATOR [ EXTENDS IDENTIFICATOR ]
+        class_body
+;
+// npr: fortress Igrac { ... }
+// fortress Klasa2 extends Klasa1 { ... }
+
+class_body =
+    LBRACE { class_member } RBRACE
+;
+
+class_member =
+      func_def        // metode
+    | var_decl_stmt   // polja klase
+;
+
+var_decl_stmt =
     var_decl SEPARATOR
 ;
-// deklaracija globalne promenljive, npr:
-// gold a#5:
+// lokalna / članska deklaracija kao naredba
+
+// ------------------- BLOKOVI I NAREDBE -------------------
+
+block =
+    LBRACE { stmt SEPARATOR } RBRACE
+;
+// blok između { i }, svaka naredba se završava sa ':' (SEPARATOR)
+
+stmt =
+      var_decl        // lokalna deklaracija, npr gold x#5:
+    | assign_stmt
+    | incdec_stmt
+    | call_stmt
+    | return_stmt
+    | if_stmt
+    | for_stmt
+    | while_stmt
+    | do_stmt
+;
+// sve vrste naredbi koje su dozvoljene u bloku
+
+// ------------------- DODELA I INC/DEC -------------------
+
+lvalue =
+    IDENTIFICATOR { LBRACKET expr RBRACKET }
+;
+// promenljiva ili element niza, npr:
+// a, niz[0], matrica[i][j]
+
+assign_stmt =
+    lvalue ASSIGN expr
+;
+// npr: a#5: ili a#b + 1:
+
+incdec_stmt =
+      lvalue INC   // x++
+    | lvalue DEC   // x--
+;
+
+// ------------------- FUNKCIJE -------------------
+
+postfix =
+    IDENTIFICATOR
+    { DOT IDENTIFICATOR
+    | LBRACKET expr RBRACKET
+    }
+;
+// identifikator, mogući pristup polju ili elementu niza:
+// steve, steve.predstavi, niz[i], obj.polje itd.
+
+call_expr =
+    postfix LPAREN [ args ] RPAREN
+;
+// npr: collect("tekst"), drop("..."), steve.predstavi()
+
+args =
+    expr { COMMA expr }
+;
+
+call_stmt = call_expr SEPARATOR xxxxx
+;
+// poziv funkcije kao naredba, npr:
+// collect("Zbir je " + zbir):
 
 
-// =================== TIPOVI I PROMENLJIVE ===================
+// ------------------- KONTROLNE STRUKTURE -------------------
+
+// dig = IF, bedrock = ELSE, deeper = ELSEIF
+
+if_stmt =
+    IF LPAREN cond RPAREN
+        block
+    { ELSEIF LPAREN cond RPAREN block }
+    [ ELSE block ]
+;
+// npr:
+// dig (aktivan) { ... }
+// deeper (drugi_uslov) { ... }   // ELSEIF
+// bedrock { ... }                // ELSE
+
+
+// craft = FOR petlja sa tri dela razdvojenim ':'
+
+for_stmt =
+    FOR LPAREN
+        for_init SEPARATOR
+        cond     SEPARATOR
+        for_update
+    RPAREN
+        block
+;
+// npr:
+// craft (gold au#0: au [ 10: au#au + 1] { collect(au): }
+
+for_init =
+    var_decl
+;
+// npr: gold au#0
+
+for_update =
+      assign_stmt   // au#au + 1
+    | incdec_stmt   // au++ ili au--
+
+
+// build = WHILE
+
+while_stmt =
+    WHILE LPAREN cond RPAREN
+        block
+;
+// npr: build(au < 10) { ... }
+
+
+// do build = DO-WHILE
+
+do_stmt =
+    DO
+        block
+    WHILE LPAREN cond RPAREN
+;
+// npr:
+// do {
+//     ...
+// }build(au < 10):
+
+// ------------------- PROMENLJIVE -------------------
 
 type_primitive =
       BOOLEAN   // redstone
@@ -77,184 +242,7 @@ var_one =
 // gold a#5:   -> type=gold, name=a, ASSIGN 5
 // chain s#"Oof":
 
-
-// =================== FUNKCIJE ===================
-
-func_def =
-    FUNCTION IDENTIFICATOR LPAREN [ params ] RPAREN
-        block
-;
-// npr: mine sabiranje(gold a, gold b) { ... }
-
-params =
-    param { COMMA param }
-;
-
-param =
-    type IDENTIFICATOR
-;
-// npr: gold a, chain ime
-
-
-return_stmt =
-    RETURN expr
-;
-// npr: loot a + b:
-
-
-// =================== KLASE (fortress) ===================
-
-class_def =
-    CLASS IDENTIFICATOR [ EXTENDS IDENTIFICATOR ]
-        class_body
-;
-// npr: fortress Igrac { ... }
-// fortress Klasa2 extends Klasa1 { ... }
-
-class_body =
-    LBRACE { class_member } RBRACE
-;
-
-class_member =
-      func_def        // metode
-    | var_decl_stmt   // polja klase
-;
-
-var_decl_stmt =
-    var_decl SEPARATOR
-;
-// lokalna / članska deklaracija kao naredba
-
-
-// =================== BLOKOVI I NAREDBE ===================
-
-block =
-    LBRACE { stmt SEPARATOR } RBRACE
-;
-// blok između { i }, svaka naredba se završava sa ':' (SEPARATOR)
-
-stmt =
-      var_decl        // lokalna deklaracija, npr gold x#5:
-    | assign_stmt
-    | incdec_stmt
-    | call_stmt
-    | return_stmt
-    | if_stmt
-    | for_stmt
-    | while_stmt
-    | do_stmt
-;
-// sve vrste naredbi koje su dozvoljene u bloku
-
-
-// =================== DODELA I INC/DEC ===================
-
-lvalue =
-    IDENTIFICATOR { LBRACKET expr RBRACKET }
-;
-// promenljiva ili element niza, npr:
-// a, niz[0], matrica[i][j]
-
-assign_stmt =
-    lvalue ASSIGN expr
-;
-// npr: a#5: ili a#b + 1:
-
-incdec_stmt =
-      lvalue INC   // x++
-    | lvalue DEC   // x--
-;
-
-
-// =================== POZIVI FUNKCIJA ===================
-
-postfix =
-    IDENTIFICATOR
-    { DOT IDENTIFICATOR
-    | LBRACKET expr RBRACKET
-    }
-;
-// identifikator, mogući pristup polju ili elementu niza:
-// steve, steve.predstavi, niz[i], obj.polje itd.
-
-call_expr =
-    postfix LPAREN [ args ] RPAREN
-;
-// npr: collect("tekst"), drop("..."), steve.predstavi()
-
-args =
-    expr { COMMA expr }
-;
-
-call_stmt =
-    call_expr
-;
-// poziv funkcije kao naredba, npr:
-// collect("Zbir je " + zbir):
-
-
-// =================== KONTROLNE STRUKTURE ===================
-
-// dig = IF, bedrock = ELSE, deeper = ELSEIF
-
-if_stmt =
-    IF LPAREN cond RPAREN
-        block
-    { ELSEIF LPAREN cond RPAREN block }
-    [ ELSE block ]
-;
-// npr:
-// dig (aktivan) { ... }
-// deeper (drugi_uslov) { ... }   // ELSEIF
-// bedrock { ... }                // ELSE
-
-
-// craft = FOR petlja sa tri dela razdvojenim ':'
-
-for_stmt =
-    FOR LPAREN
-        for_init SEPARATOR
-        cond     SEPARATOR
-        for_update
-    RPAREN
-        block
-;
-// npr:
-// craft (gold au#0: au < 10: au#au + 1) { collect(au): }
-
-for_init =
-    var_decl
-;
-// npr: gold au#0
-
-for_update =
-      assign_stmt   // au#au + 1
-    | incdec_stmt   // au++ ili au--
-
-
-// build = WHILE
-
-while_stmt =
-    WHILE LPAREN cond RPAREN
-        block
-;
-// npr: build(au < 10) { ... }
-
-
-// do build = DO-WHILE
-
-do_stmt =
-    DO
-        block
-    WHILE LPAREN cond RPAREN
-;
-// npr:
-// do {
-//     ...
-// }build(au < 10):
-
-
-// =================== IZRAZI ===================
+// ------------------- IZRAZI I OPERATORI -------------------
 
 expr =
     ternary_expr
@@ -318,7 +306,7 @@ unary_expr =
 ;
 
 
-// =================== ATOMI ===================
+// ------------------- ATOMI -------------------
 
 primary =
       literal
@@ -342,3 +330,4 @@ array_literal =
     LBRACKET [ expr { COMMA expr } ] RBRACKET
 ;
 // npr: [1, 2, 3], ['a', 'b'], ["x", "y"]
+

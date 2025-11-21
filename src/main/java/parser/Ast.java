@@ -60,14 +60,18 @@ public final class Ast {
     public static final class Type {
         public enum Kind { BOOLEAN, INT, DOUBLE, LONG, CHAR, STRING, ARRAY, VOID }
         public final Kind kind;
-        public final Token baseType; // token koji predstavlja tip
-        public final int rank; // broj [] zagrada
+        public final Token baseType;
+        public final int rank;
+        public Kind inner;
+
         public Type(Kind kind, Token baseType, int rank) {
             this.kind = kind;
             this.baseType = baseType;
             this.rank = rank;
+            this.inner = null;
         }
     }
+
 
 
 
