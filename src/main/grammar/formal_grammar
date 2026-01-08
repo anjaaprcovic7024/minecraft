@@ -1,3 +1,5 @@
+FORMAL GRAMMAR
+
 // ---------------------------------------------------------------------------
 // TOKENI:
 // FUNCTION  = 'mine'
@@ -221,23 +223,38 @@ type_primitive =
 
 type =
       type_primitive
-    | ARRAY '<' type '>'
+    | ARRAY '[' type ']'
 ;
-// ARRAY je chest<tip>; dozvoljavamo ugnježdene tipove, npr:
-// chest<gold>, chest<chest<gold>> ...
+
+// ARRAY je chest[tip]; dozvoljavamo ugnježdene tipove, npr:
+// chest[gold], chest[chest[gold]] ...
 
 var_decl =
     type var_decl_list
 ;
-// npr: gold a#5, b, c#10
+// npr: chest[gold][10] a:, chest[gold] a#[1,2,3]:
 
 var_decl_list =
     var_one { COMMA var_one }
 ;
 
+
 var_one =
-    IDENTIFICATOR [ ASSIGN expr ]
+    IDENTIFICATOR
+    (
+        fixed_array_dims            // fiksne dimenzije posle tipa
+      | dynamic_array_assign        // ili dinamički niz sa # i literalom
+    )?
 ;
+
+fixed_array_dims =
+    { LBRACKET INT_LIT RBRACKET }  // npr: [10], može više dimenzija, npr [5][10]
+
+
+dynamic_array_assign =
+    ASSIGN array_literal           // npr: a#[1,2,3]
+;
+
 // ASSIGN je '#', npr:
 // gold a#5:   -> type=gold, name=a, ASSIGN 5
 // chain s#"Oof":

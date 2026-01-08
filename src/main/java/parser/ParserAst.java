@@ -90,19 +90,25 @@ public final class ParserAst {
     }
 
     private List<Ast.TopItem> parseClassBody() {
-        // parsira sve top-level elemente unutar klase
         List<Ast.TopItem> items = new ArrayList<>();
         consume(LBRACE, "Expected '{' at class body start");
         while (!check(RBRACE) && !check(EOF)) {
-            Ast.TopItem it = parseTopItem();
-            if (it instanceof Ast.TopVarDecl) {
+            if (isTypeStart()) {
+                Ast.TopVarDecl var = new Ast.TopVarDecl(parseVarDecl(false));
                 consume(SEPARATOR, "Expected ':' after class field");
+                items.add(var);
+            } else if (check(FUNCTION)) {
+                items.add(parseFuncDef());
+            } else {
+                throw error(peek(), "Unexpected item in class body");
             }
-            items.add(it);
         }
         consume(RBRACE, "Expected '}' at class body end");
         return items;
     }
+
+
+
 
     private List<Ast.Param> parseParams() {
         // parsira listu parametara funkcije
@@ -158,15 +164,12 @@ public final class ParserAst {
     }
 
     private Stmt.VarDecl parseVarDecl(boolean expectSeparator) {
-        // parsira deklaraciju promenljive sa opcionalnim inicijalizatorom i dimenzijama
         Ast.Type type;
 
-        // ako je array token, parsiramo tip i unutrasnji tip
+        // parsiranje tipa niza
         if (match(ARRAY)) {
             Token arrayToken = previous();
-            Ast.Type.Kind innerKind = Ast.Type.Kind.INT; // podrazumevani unutrasnji tip
-
-            // parsira unutrasnji tip niza ako postoji
+            Ast.Type.Kind innerKind = Ast.Type.Kind.INT; // default
             if (match(LBRACKET)) {
                 Token innerTypeToken = consumeOneOf(
                         "expected type inside array",
@@ -182,59 +185,58 @@ public final class ParserAst {
                 }
                 consume(RBRACKET, "expected ']' after array inner type");
             }
-
             type = new Ast.Type(Ast.Type.Kind.ARRAY, arrayToken, 1);
-            type.inner = innerKind; // cuvamo unutrasnji tip
+            type.inner = innerKind;
         } else {
-            type = parseType(); // standardni tip promenljive
+            type = parseType();
         }
 
-        // parsira dimenzije ako je vise-dimenzionalni niz
+        // parsiranje dimenzija niza (staticke)
         List<Expr> dims = new ArrayList<>();
         while (match(LBRACKET)) {
-            dims.add(parseExpr()); // dodajemo izraz za dimenziju
+            dims.add(parseExpr());
             consume(RBRACKET, "expected ']' after dimension");
         }
 
-        List<Token> names = new ArrayList<>();
-        List<Expr> values = new ArrayList<>();
-
         Token id = consume(IDENTIFICATOR, "expected variable name");
+
         Expr value = null;
 
-        // inicijalizacija promenljive (moze biti literal ili array literal)
+        // inicijalizator niza
         if (match(ASSIGN)) {
-            if (match(LBRACKET)) {
-                // parsiramo array literal sa vise elemenata
+            if (match(LBRACKET)) { // array literal
+                if (!dims.isEmpty()) {
+                    throw error(peek(), "Cannot use '#' initializer with fixed size array");
+                }
                 List<Expr> elems = new ArrayList<>();
                 if (!check(RBRACKET)) {
                     elems.add(parseExpr());
-                    while (match(COMMA)) { // vise elemenata razdvojeno zarezom
-                        elems.add(parseExpr());
-                    }
+                    while (match(COMMA)) elems.add(parseExpr());
                 }
                 consume(RBRACKET, "expected ']' after array literal");
                 value = new Expr.ArrayLiteral(elems);
             } else {
-                value = parseExpr(); // standardni inicijalizator
+                value = parseExpr();
             }
         }
 
+        List<Token> names = new ArrayList<>();
+        List<Expr> values = new ArrayList<>();
         names.add(id);
         values.add(value);
 
-        // parsiranje vise deklaracija odvojeno zarezom (npr: int a=1, b=2)
         while (match(COMMA)) {
             id = consume(IDENTIFICATOR, "expected variable name after ','");
             value = null;
             if (match(ASSIGN)) {
                 if (match(LBRACKET)) {
+                    if (!dims.isEmpty()) {
+                        throw error(peek(), "Cannot use '#' initializer with fixed size array");
+                    }
                     List<Expr> elems = new ArrayList<>();
                     if (!check(RBRACKET)) {
                         elems.add(parseExpr());
-                        while (match(COMMA)) {
-                            elems.add(parseExpr());
-                        }
+                        while (match(COMMA)) elems.add(parseExpr());
                     }
                     consume(RBRACKET, "expected ']' after array literal");
                     value = new Expr.ArrayLiteral(elems);
@@ -248,13 +250,6 @@ public final class ParserAst {
 
         if (expectSeparator) consume(SEPARATOR, "expected ':' after statement");
         return new Stmt.VarDecl(type, dims, names, values);
-    }
-
-    private List<Token> parseIdentList() {
-        List<Token> ids = new ArrayList<>();
-        ids.add(consume(IDENTIFICATOR, "expected identifier"));
-        while (match(COMMA)) ids.add(consume(IDENTIFICATOR, "expected identifier"));
-        return ids;
     }
 
     private List<Stmt> parseBlock() {
@@ -279,7 +274,6 @@ public final class ParserAst {
     }
 
     private Stmt parseStmt() {
-        // parsira jedan statement i odredjuje koji tip statement-a je u pitanju
         switch (peek().type) {
             case FOR:    return parseForStmt();
             case IF:     return parseIfStmt();
@@ -288,21 +282,24 @@ public final class ParserAst {
             case RETURN: return parseReturnStmt();
         }
 
-        if (isTypeStart()) return parseVarDecl();  // ako pocinje tipom, parsiramo varijablu
+        if (isTypeStart()) return parseVarDecl();
 
-        if (peek().type == PRINT || peek().type == SCAN) {
-            return parseCallStmt();
-        }
+        if (peek().type == PRINT || peek().type == SCAN) return parseCallStmt();
 
         if (check(IDENTIFICATOR)) {
-            if (checkNext(LPAREN)) return parseCallStmt(); // funkcija
-            if (checkNext(ASSIGN)) return parseAssignStmt();  // dodela
-            if (checkNext(INC) || checkNext(DEC)) return parseIncDecStmt(); // ++/--
-            return parseCallStmt(); // default fallback
+            if (checkNext(LPAREN)) return parseCallStmt();
+            if (checkNext(ASSIGN)) return parseAssignStmt(); // Poziva gornju metodu
+            if (checkNext(INC) || checkNext(DEC)) return parseIncDecStmt();
+
+            Expr e = parseExpr();
+            consume(SEPARATOR, "expected ':' after statement");
+            return new Stmt.ExprStmt(e);
         }
+
 
         throw error(peek(), "Unexpected statement");
     }
+
 
     private Stmt parseIncDecStmt() {
         Stmt.LValue target = parseLValue();
@@ -361,26 +358,38 @@ public final class ParserAst {
     }
 
     private Stmt parseForStmt() {
-        // parsira for/craft petlju sa inicijalizacijom, uslovom i update delom
         consume(FOR, "expected 'craft'");
         consume(LPAREN, "expected '(' after craft");
 
-        Stmt.VarDecl forInit = parseVarDecl(false); // parsira for-inicijalizaciju
+        // for-init
+        Stmt.VarDecl forInit = parseVarDecl(false);
         consume(SEPARATOR, "expected ':' after for-init");
 
-        Expr cond = parseCond(); // parsira uslov petlje
+        // for-cond
+        Expr cond = parseCond();
         consume(SEPARATOR, "expected ':' after for-cond");
 
-        // parsira for-update deo, moze biti dodela ili ++/--
-        Stmt update;
-        if (check(IDENTIFICATOR) && checkNext(ASSIGN)) update = parseAssignStmt();
-        else if (check(IDENTIFICATOR) && (checkNext(INC) || checkNext(DEC))) update = parseIncDecStmt();
-        else throw error(peek(), "expected for-update statement");
+        // for-update
+        Stmt update = parseForUpdate();
 
         consume(RPAREN, "expected ')' after for header");
-        List<Stmt> body = parseBlock(); // parsira telo petlje
+
+        List<Stmt> body = parseBlock();
         return new Stmt.BeginFor(forInit, cond, update, body);
     }
+
+
+    private Stmt parseForUpdate() {
+        if (check(IDENTIFICATOR) && checkNext(ASSIGN)) {
+            return parseAssignStmt();
+        } else if (check(IDENTIFICATOR) && (checkNext(INC) || checkNext(DEC))) {
+            return parseIncDecStmt();
+        } else {
+            throw error(peek(), "expected for-update statement");
+        }
+    }
+
+
 
     private Stmt parseReturnStmt() {
         consume(RETURN, "expected RETURN");
@@ -430,7 +439,8 @@ public final class ParserAst {
     private Stmt parseAssignStmt() {
         Stmt.LValue lv = parseLValue();
         consume(ASSIGN, "expected '#'");
-        Expr value = parseExpr();
+        Expr value = parseExpr(); // Ovo sada poziva ceo lanac (Ternary -> Or -> And -> Bitwise...)
+        consume(SEPARATOR, "expected ':' after assignment"); // DODAJ OVO
         return new Stmt.Assign(value, lv);
     }
 
@@ -446,18 +456,55 @@ public final class ParserAst {
     }
 
     // ===== expressions =====
-    private Expr parseExpr() { return parseAExpr(); }
+    private Expr parseExpr() {
+        return parseTernary(); // umesto parseAExpr()
+    }
+
 
     private Expr parseAExpr() {
-        // parsira binarne izraze sa operatorima
-        Expr left = parseAtom();
-        while (match(ADD, SUBTRACT, MULTIPLY, DIVIDE, PERCENT, CARET)) {
+        return parseAdditive(); // ili parseCond() ako je to tvoja logika
+    }
+
+    private Expr parseAdditive() {
+        Expr left = parseMultiplicative();
+        while (match(ADD, SUBTRACT)) {
             Token op = previous();
-            Expr right = parseAtom();
+            Expr right = parseMultiplicative();
             left = new Expr.Binary(left, op, right);
         }
         return left;
     }
+
+    private Expr parseMultiplicative() {
+        Expr left = parseUnary(); // **VAŽNO: unarni operatori ovde**
+        while (match(MULTIPLY, DIVIDE, PERCENT)) {
+            Token op = previous();
+            Expr right = parseUnary();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseUnary() {
+        if (match(NOT, SUBTRACT)) {
+            Token op = previous();
+            Expr right = parseUnary();
+            return new Expr.Unary(op, right);
+        }
+        return parseAtom();
+    }
+    private Expr parseTernary() {
+        Expr cond = parseOr();
+        if (match(TQUESTION)) {
+            Expr thenBranch = parseExpr();
+            consume(TSEMICOLON, "expected ';' after ternary true branch");
+            Expr elseBranch = parseTernary();
+            return new Expr.Ternary(cond, thenBranch, elseBranch);
+        }
+        return cond;
+    }
+
+
 
     private Expr parseExprNoCall() {
         return parseAExpr();
@@ -513,6 +560,10 @@ public final class ParserAst {
         if (match(DOUBLE_LIT)) return new Expr.DoubleLiteral(previous(), (Double) previous().literal);
         if (match(TRUE)) return new Expr.BooleanLiteral(previous(), true);
         if (match(FALSE)) return new Expr.BooleanLiteral(previous(), false);
+        if (match(LONG_LIT)) return new Expr.LongLiteral(previous(), (Long) previous().literal);
+        if (match(CHAR_LIT)) return new Expr.CharLiteral(previous(), (Character) previous().literal);
+        if (match(STRING_LIT)) return new Expr.StringLiteral(previous(), (String) previous().literal);
+
 
         if (match(LPAREN)) {
             Expr inner = parseExpr();
@@ -522,8 +573,6 @@ public final class ParserAst {
 
         throw error(peek(), "expected expression");
     }
-
-
 
     private List<Expr> parseArgs() {
         List<Expr> args = new ArrayList<>();
@@ -535,19 +584,79 @@ public final class ParserAst {
     }
 
     private Expr parseCond() {
-        Expr left = parseAExpr();
-        if (match(LT, LE, GT, GE, EQ, NEQ)) {
+        return parseOr(); // start od najnižeg prioritetnog logičkog operatora
+    }
+
+    private Expr parseOr() {
+        Expr left = parseAnd();
+        while (match(OR)) {
             Token op = previous();
-            Expr right = parseAExpr();
-            left = new Expr.Binary(left, op, right);
-        }
-        while (match(AND, OR)) {
-            Token op = previous();
-            Expr right = parseCond();
+            Expr right = parseAnd();
             left = new Expr.Binary(left, op, right);
         }
         return left;
     }
+
+    private Expr parseAnd() {
+        Expr left = parseBitOr();
+        while (match(AND)) {
+            Token op = previous();
+            Expr right = parseBitOr();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseBitOr() {
+        Expr left = parseBitAnd();
+        while (match(BIT_OR)) {
+            Token op = previous();
+            Expr right = parseBitAnd();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseBitAnd() {
+        Expr left = parseEquality(); // Bitwise AND (&) ima manji prioritet od ==
+        while (match(BIT_AND)) {
+            Token op = previous();
+            Expr right = parseEquality();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseShift() {
+        Expr left = parseAdditive();
+        while (match(BIT_LSHIFT, BIT_RSHIFT)) { // '<<' i '>>'
+            Token op = previous();
+            Expr right = parseAdditive();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseEquality() {
+        Expr left = parseRelational();
+        while (match(EQ, NEQ)) {
+            Token op = previous();
+            Expr right = parseRelational();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
+    private Expr parseRelational() {
+        Expr left = parseShift(); 
+        while (match(LT, LE, GT, GE)) {
+            Token op = previous();
+            Expr right = parseShift();
+            left = new Expr.Binary(left, op, right);
+        }
+        return left;
+    }
+
 
     // ===== utilities =====
 

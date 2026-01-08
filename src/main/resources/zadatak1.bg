@@ -1,1 +1,10 @@
-gold b # 2+5*3:
+dig (flag=powered) {
+    craft (gold i#0: i < 3: i#i + 1:) {
+        dig (i % 2 = 0) {
+            collect("paran"):
+        }
+        bedrock {
+            collect("neparan"):
+        }
+    }
+}

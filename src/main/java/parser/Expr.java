@@ -20,6 +20,7 @@ public abstract class Expr {
         R visitCall(Call e);
         R visitBinary(Binary e);
         R visitUnary(Unary e);
+        R visitTernary(Ternary e);
     }
 
     public abstract <R> R accept(Visitor<R> v);
@@ -34,6 +35,20 @@ public abstract class Expr {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitUnary(this);
+        }
+    }
+
+    public static final class Ternary extends Expr {
+        public final Expr cond;
+        public final Expr thenExpr;
+        public final Expr elseExpr;
+        public Ternary(Expr cond, Expr thenExpr, Expr elseExpr) {
+            this.cond = cond;
+            this.thenExpr = thenExpr;
+            this.elseExpr = elseExpr;
+        }
+        @Override public <R> R accept(Visitor<R> v) {
+            return v.visitTernary(this);
         }
     }
 

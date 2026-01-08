@@ -2,31 +2,115 @@
   "type" : "program",
   "explicitProgram" : true,
   "items" : [ {
-    "kind" : "topVarDecl",
-    "decl" : {
-      "stmt" : "varDecl",
-      "dims" : [ ],
-      "names" : [ "b" ],
-      "values" : [ {
-        "type" : "binary",
-        "op" : "*",
-        "left" : {
+    "kind" : "topStmt",
+    "stmt" : {
+      "stmt" : "begin_if",
+      "if" : {
+        "cond" : {
           "type" : "binary",
-          "op" : "+",
+          "op" : "=",
           "left" : {
-            "type" : "int",
-            "value" : 2
+            "type" : "ident",
+            "name" : "flag"
           },
           "right" : {
-            "type" : "int",
-            "value" : 5
+            "type" : "boolean",
+            "value" : true
           }
         },
-        "right" : {
-          "type" : "int",
-          "value" : 3
-        }
-      } ]
+        "block" : [ {
+          "stmt" : "for",
+          "init" : {
+            "stmt" : "varDecl",
+            "dims" : [ ],
+            "names" : [ "i" ],
+            "values" : [ {
+              "type" : "int",
+              "value" : 0
+            } ]
+          },
+          "cond" : {
+            "type" : "binary",
+            "op" : "<",
+            "left" : {
+              "type" : "ident",
+              "name" : "i"
+            },
+            "right" : {
+              "type" : "int",
+              "value" : 3
+            }
+          },
+          "update" : {
+            "stmt" : "assign",
+            "left" : {
+              "type" : "binary",
+              "op" : "+",
+              "left" : {
+                "type" : "ident",
+                "name" : "i"
+              },
+              "right" : {
+                "type" : "int",
+                "value" : 1
+              }
+            },
+            "lvalue" : {
+              "name" : "i",
+              "indices" : [ ]
+            }
+          },
+          "body" : [ {
+            "stmt" : "begin_if",
+            "if" : {
+              "cond" : {
+                "type" : "binary",
+                "op" : "=",
+                "left" : {
+                  "type" : "binary",
+                  "op" : "%",
+                  "left" : {
+                    "type" : "ident",
+                    "name" : "i"
+                  },
+                  "right" : {
+                    "type" : "int",
+                    "value" : 2
+                  }
+                },
+                "right" : {
+                  "type" : "int",
+                  "value" : 0
+                }
+              },
+              "block" : [ {
+                "stmt" : "call",
+                "call" : {
+                  "type" : "call",
+                  "name" : "collect",
+                  "args" : [ {
+                    "type" : "string",
+                    "value" : "paran"
+                  } ]
+                }
+              } ]
+            },
+            "or_if" : [ ],
+            "else" : [ {
+              "stmt" : "call",
+              "call" : {
+                "type" : "call",
+                "name" : "collect",
+                "args" : [ {
+                  "type" : "string",
+                  "value" : "neparan"
+                } ]
+              }
+            } ]
+          } ]
+        } ]
+      },
+      "or_if" : [ ]
     }
   } ]
 }

@@ -16,6 +16,7 @@ public abstract class Stmt {
         R visitIncDec(IncDec s);
         R visitWhileStmt(WhileStmt s);
         R visitDoWhileStmt(DoWhileStmt s);
+        R visitExprStmt(ExprStmt s);
     }
 
     public abstract <R> R accept(Visitor<R> v);
@@ -130,4 +131,15 @@ public abstract class Stmt {
         public final List<Expr> indices;
         public LValue(Token name, List<Expr> indices) { this.name = name; this.indices = indices; }
     }
+
+    public static final class ExprStmt extends Stmt {
+        public final Expr expr;
+        public ExprStmt(Expr expr) { this.expr = expr; }
+        @Override public <R> R accept(Visitor<R> v) {
+            throw new UnsupportedOperationException("ExprStmt visitor not implemented");
+        }
+    }
+
+
+
 }

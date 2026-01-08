@@ -23,6 +23,15 @@ public final class JsonAstPrinter implements
         return o;
     }
 
+    @Override
+    public JsonNode visitTernary(Expr.Ternary e) {
+        ObjectNode o = M.createObjectNode();
+        o.put("type", "ternary");
+        o.set("cond", e.cond.accept(this));
+        o.set("thenExpr", e.thenExpr.accept(this));
+        o.set("elseExpr", e.elseExpr.accept(this));
+        return o;
+    }
 
     public String print(Ast.Program p) {
         try {
@@ -150,8 +159,10 @@ public final class JsonAstPrinter implements
 
         ArrayNode values = M.createArrayNode();
         for(Expr v: s.values) {
-                values.add(v.accept(this));
+            if (v != null) values.add(v.accept(this));
+            else values.add(M.nullNode()); // ili ArrayNode/NullNode po potrebi
         }
+
         o.set("values", values);
 
         return o;
@@ -263,6 +274,15 @@ public final class JsonAstPrinter implements
         o.set("cond", s.cond.accept(this));
         return o;
     }
+
+    @Override
+    public JsonNode visitExprStmt(Stmt.ExprStmt s) {
+        ObjectNode o = M.createObjectNode();
+        o.put("stmt", "expr");
+        o.set("expr", s.expr.accept(this));
+        return o;
+    }
+
 
 
     @Override
