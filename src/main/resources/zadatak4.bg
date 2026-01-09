@@ -6,6 +6,7 @@ mine gold main() {
         gold x# i + j:
         build (x < 10) {
             gold y# x * 2:
+             x# x + 1:
         }
 
     }

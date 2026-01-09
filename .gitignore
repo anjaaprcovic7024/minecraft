@@ -36,3 +36,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+src/main/resources/program_generated.txt
+src/main/resources/program_parsed.json
+src/main/resources/program_typed.json

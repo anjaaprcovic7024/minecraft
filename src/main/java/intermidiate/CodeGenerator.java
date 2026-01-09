@@ -6,12 +6,16 @@ import parser.Stmt;
 import lexer.token.Token;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private final List<String> instructions = new ArrayList<>();
     private int labelCounter = 0;
+    private final Map<String, Integer> labelPositions = new HashMap<>();
+    private final List<String> unresolvedLabels = new ArrayList<>();
 
     public List<String> generate(Ast.Program program) {
         for (Ast.TopItem item : program.items) {
@@ -20,14 +24,64 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
             } else if (item instanceof Ast.TopVarDecl topVar) {
                 topVar.decl.accept(this);
             } else if (item instanceof Ast.FuncDef func) {
-                // funkcije trenutno samo dodeljujemo labelu
-                instructions.add("label " + func.name.lexeme);
+                addInstruction("label " + func.name.lexeme);
                 for (Stmt stmt : func.body) {
                     stmt.accept(this);
                 }
             }
         }
-        return instructions;
+        return resolveLabels();
+    }
+
+    private void addInstruction(String instr) {
+        if (instr.startsWith("label ")) {
+            String labelName = instr.substring(6);
+            labelPositions.put(labelName, instructions.size());
+        }
+        instructions.add(instr);
+    }
+
+    private List<String> resolveLabels() {
+        List<String> resolved = new ArrayList<>();
+
+        for (String instr : instructions) {
+            if (instr.startsWith("label ")) {
+                String labelName = instr.substring(6);
+                resolved.add("label " + labelName);
+            } else if (instr.startsWith("jmp ")) {
+                String target = instr.substring(4);
+                if (labelPositions.containsKey(target)) {
+                    resolved.add("jmp " + labelPositions.get(target));
+                } else {
+                    resolved.add(instr);
+                }
+            } else if (instr.startsWith("jmp_if_false ")) {
+                String target = instr.substring(13);
+                if (labelPositions.containsKey(target)) {
+                    resolved.add("jmp_if_false " + labelPositions.get(target));
+                } else {
+                    resolved.add(instr);
+                }
+            } else if (instr.startsWith("jmp_if_true ")) {
+                String target = instr.substring(12);
+                if (labelPositions.containsKey(target)) {
+                    resolved.add("jmp_if_true " + labelPositions.get(target));
+                } else {
+                    resolved.add(instr);
+                }
+            } else if (instr.startsWith("call ")) {
+                String target = instr.substring(5);
+                if (labelPositions.containsKey(target)) {
+                    resolved.add("call " + labelPositions.get(target));
+                } else {
+                    resolved.add(instr);
+                }
+            } else {
+                resolved.add(instr);
+            }
+        }
+
+        return resolved;
     }
 
     private String newLabel() {
@@ -53,14 +107,14 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
                             case STRING -> "string";
                             default -> throw new IllegalStateException("Unsupported var type: " + s.type.kind);
                         };
-                        instructions.add("cast " + targetType);
+                        addInstruction("cast " + targetType);
                     }
                 }
             } else {
-                instructions.add("push 0");
+                addInstruction("push 0");
             }
 
-            instructions.add("pop " + s.names.get(i).lexeme);
+            addInstruction("pop " + s.names.get(i).lexeme);
         }
         return null;
     }
@@ -70,9 +124,9 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
         if (s.expr != null) {
             s.expr.accept(this);
         } else {
-            instructions.add("push 0");
+            addInstruction("push 0");
         }
-        instructions.add("ret"); // kraj funkcije
+        addInstruction("ret");
         return null;
     }
 
@@ -80,17 +134,16 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     public Void visitAssign(Stmt.Assign s) {
         s.left.accept(this);
         s.lvalue.indices.forEach(idx -> idx.accept(this));
-        instructions.add("pop " + s.lvalue.name.lexeme);
+        addInstruction("pop " + s.lvalue.name.lexeme);
         return null;
     }
 
     @Override
     public Void visitCallStmt(Stmt.CallStmt s) {
-        // push arg values
         for (Expr arg : s.call.args) {
             arg.accept(this);
         }
-        instructions.add("call " + s.call.callee.lexeme);
+        addInstruction("call " + s.call.callee.lexeme);
         return null;
     }
 
@@ -101,23 +154,27 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
         // prvi ifArm
         String nextLabel = s.orIfArms.isEmpty() && s.elseBlock == null ? endLabel : newLabel();
         s.ifArm.cond.accept(this);
-        instructions.add("jmp_if_false " + nextLabel);
+        addInstruction("jmp_if_false " + nextLabel);
 
         for (Stmt stmt : s.ifArm.block) stmt.accept(this);
         if (!nextLabel.equals(endLabel)) {
-            instructions.add("jmp " + endLabel);
-            instructions.add("label " + nextLabel);
+            addInstruction("jmp " + endLabel);
+        }
+        if (!nextLabel.equals(endLabel)) {
+            addInstruction("label " + nextLabel);
         }
 
         for (Stmt.BeginIf.Arm arm : s.orIfArms) {
             String armNext = (s.elseBlock == null && arm == s.orIfArms.get(s.orIfArms.size() - 1)) ? endLabel : newLabel();
             arm.cond.accept(this);
-            instructions.add("jmp_if_false " + armNext);
+            addInstruction("jmp_if_false " + armNext);
 
             for (Stmt stmt : arm.block) stmt.accept(this);
             if (!armNext.equals(endLabel)) {
-                instructions.add("jmp " + endLabel);
-                instructions.add("label " + armNext);
+                addInstruction("jmp " + endLabel);
+            }
+            if (!armNext.equals(endLabel)) {
+                addInstruction("label " + armNext);
             }
         }
 
@@ -125,7 +182,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
             for (Stmt stmt : s.elseBlock) stmt.accept(this);
         }
 
-        instructions.add("label " + endLabel);
+        addInstruction("label " + endLabel);
         return null;
     }
 
@@ -136,27 +193,26 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
         String startLabel = newLabel();
         String endLabel = newLabel();
 
-        instructions.add("label " + startLabel);
+        addInstruction("label " + startLabel);
 
-        // uslov petlje
         s.cond.accept(this);
-        instructions.add("jmp_if_false " + endLabel);
+        addInstruction("jmp_if_false " + endLabel);
 
         for (Stmt stmt : s.body) stmt.accept(this);
 
         if (s.update != null) s.update.accept(this);
 
-        instructions.add("jmp " + startLabel);
-        instructions.add("label " + endLabel);
+        addInstruction("jmp " + startLabel);
+        addInstruction("label " + endLabel);
 
         return null;
     }
 
     @Override
     public Void visitIncDec(Stmt.IncDec s) {
-        instructions.add("push " + s.target.name.lexeme);
-        instructions.add(s.op.type.name().toLowerCase());
-        instructions.add("pop " + s.target.name.lexeme);
+        addInstruction("push " + s.target.name.lexeme);
+        addInstruction(s.op.type.name().toLowerCase());
+        addInstruction("pop " + s.target.name.lexeme);
         return null;
     }
 
@@ -165,15 +221,15 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
         String startLabel = newLabel();
         String endLabel = newLabel();
 
-        instructions.add("label " + startLabel);
+        addInstruction("label " + startLabel);
 
         s.cond.accept(this);
-        instructions.add("jmp_if_false " + endLabel);
+        addInstruction("jmp_if_false " + endLabel);
 
         for (Stmt stmt : s.body) stmt.accept(this);
 
-        instructions.add("jmp " + startLabel);
-        instructions.add("label " + endLabel);
+        addInstruction("jmp " + startLabel);
+        addInstruction("label " + endLabel);
 
         return null;
     }
@@ -181,12 +237,12 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     @Override
     public Void visitDoWhileStmt(Stmt.DoWhileStmt s) {
         String startLabel = newLabel();
-        instructions.add("label " + startLabel);
+        addInstruction("label " + startLabel);
 
         for (Stmt stmt : s.body) stmt.accept(this);
 
         s.cond.accept(this);
-        instructions.add("jmp_if_true " + startLabel);
+        addInstruction("jmp_if_true " + startLabel);
 
         return null;
     }
@@ -201,7 +257,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     public Void visitArrayAssign(Stmt.ArrayAssign s) {
         s.target.indices.forEach(idx -> idx.accept(this));
         s.value.accept(this);
-        instructions.add("store_array " + s.target.name.lexeme);
+        addInstruction("store_array " + s.target.name.lexeme);
         return null;
     }
 
@@ -210,55 +266,55 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     @Override
     public Void visitArrayLiteral(Expr.ArrayLiteral e) {
         for (Expr el : e.elements) el.accept(this);
-        instructions.add("make_array " + e.elements.size());
+        addInstruction("make_array " + e.elements.size());
         return null;
     }
 
     @Override
     public Void visitIntLiteral(Expr.IntLiteral e) {
-        instructions.add("push " + e.value);
+        addInstruction("push " + e.value);
         return null;
     }
 
     @Override
     public Void visitDoubleLiteral(Expr.DoubleLiteral e) {
-        instructions.add("push " + e.value);
+        addInstruction("push " + e.value);
         return null;
     }
 
     @Override
     public Void visitLongLiteral(Expr.LongLiteral e) {
-        instructions.add("push " + e.value);
+        addInstruction("push " + e.value);
         return null;
     }
 
     @Override
     public Void visitCharLiteral(Expr.CharLiteral e) {
-        instructions.add("push '" + e.value + "'");
+        addInstruction("push '" + e.value + "'");
         return null;
     }
 
     @Override
     public Void visitStringLiteral(Expr.StringLiteral e) {
-        instructions.add("push \"" + e.value + "\"");
+        addInstruction("push \"" + e.value + "\"");
         return null;
     }
 
     @Override
     public Void visitBooleanLiteral(Expr.BooleanLiteral e) {
-        instructions.add("push " + e.value);
+        addInstruction("push " + e.value);
         return null;
     }
 
     public Void visitIdent(Expr.Ident e) {
-        instructions.add("push " + e.name.lexeme);
+        addInstruction("push " + e.name.lexeme);
         return null;
     }
 
     @Override
     public Void visitIndex(Expr.Index e) {
         e.indices.forEach(idx -> idx.accept(this));
-        instructions.add("load_array " + e.name.lexeme);
+        addInstruction("load_array " + e.name.lexeme);
         return null;
     }
 
@@ -271,7 +327,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     @Override
     public Void visitCall(Expr.Call e) {
         for (Expr arg : e.args) arg.accept(this);
-        instructions.add("call " + e.callee.lexeme);
+        addInstruction("call " + e.callee.lexeme);
         return null;
     }
 
@@ -279,7 +335,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     public Void visitBinary(Expr.Binary e) {
         e.left.accept(this);
         e.right.accept(this);
-        instructions.add(switch (e.op.type) {
+        addInstruction(switch (e.op.type) {
             case ADD -> "add";
             case SUBTRACT -> "sub";
             case MULTIPLY-> "mul";
@@ -302,7 +358,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
     @Override
     public Void visitUnary(Expr.Unary e) {
         e.right.accept(this);
-        instructions.add(switch (e.op.type) {
+        addInstruction(switch (e.op.type) {
             case SUBTRACT -> "neg";
             case NOT -> "not";
             default -> throw new IllegalStateException("Unknown unary op: " + e.op.type);
@@ -315,12 +371,12 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
         String elseLabel = newLabel();
         String endLabel = newLabel();
         e.cond.accept(this);
-        instructions.add("jmp_if_false " + elseLabel);
+        addInstruction("jmp_if_false " + elseLabel);
         e.thenExpr.accept(this);
-        instructions.add("jmp " + endLabel);
-        instructions.add("label " + elseLabel);
+        addInstruction("jmp " + endLabel);
+        addInstruction("label " + elseLabel);
         e.elseExpr.accept(this);
-        instructions.add("label " + endLabel);
+        addInstruction("label " + endLabel);
         return null;
     }
 
@@ -338,8 +394,7 @@ public final class CodeGenerator implements Expr.Visitor<Void>, Stmt.Visitor<Voi
             default -> throw new IllegalStateException("Unsupported cast type: " + e.type.kind);
         };
 
-        instructions.add("cast " + targetType); // nova instrukcija koja konvertuje vrednost na steku
+        addInstruction("cast " + targetType);
         return null;
     }
-
 }
