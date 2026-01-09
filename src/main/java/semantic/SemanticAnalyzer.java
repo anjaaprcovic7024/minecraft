@@ -1,5 +1,6 @@
 package semantic;
 
+import lexer.token.Token;
 import parser.Ast;
 import parser.Expr;
 import parser.Stmt;
@@ -13,7 +14,7 @@ public final class SemanticAnalyzer
 
     private SymbolTable symbols = new SymbolTable();
     private Ast.Type currentReturnType = null;
-    private boolean mainFound = false; //
+    private boolean mainFound = false;
     private boolean hasReturn = false;
     public Ast.Type inferredType = null;
 
@@ -26,26 +27,27 @@ public final class SemanticAnalyzer
 
             if (it instanceof Ast.FuncDef f) {
                 if (!symbols.defineFunc(f.name.lexeme, f))
-                    throw error("Function redeclared: " + f.name.lexeme);
+                    throw error("Function redeclared: " + f.name.lexeme, f, f.name);
 
                 if (f.name.lexeme.equals("main")) {
                     if (mainFound)
-                        throw error("Multiple main functions");
+                        throw error("Multiple main functions", f, f.name);
                     mainFound = true;
 
                     if (f.returnType.kind != Ast.Type.Kind.INT)
-                        throw error("Main function must return int");
+                        throw error("Main function must return int", f, f.name);
 
                     if (!f.params.isEmpty())
-                        throw error("Main function must have no parameters");
+                        throw error("Main function must have no parameters", f, f.name);
                 }
             }
 
             if (it instanceof Ast.TopVarDecl v) {
                 for (int i = 0; i < v.decl.names.size(); i++) {
                     String name = v.decl.names.get(i).lexeme;
+
                     if (!symbols.defineVar(name, v.decl.type))
-                        throw error("Global variable redeclared: " + name);
+                        throw error("Global variable redeclared: " + name, v, v.decl.names.get(i));
                 }
             }
         }
@@ -73,7 +75,7 @@ public final class SemanticAnalyzer
 
         for (Ast.Param p : f.params) {
             if (!symbols.defineParam(p.name.lexeme, p.type))
-                throw error("Parameter redeclared: " + p.name.lexeme);
+                throw error("Parameter redeclared: " + p.name.lexeme, f, p.name);
         }
 
         for (Stmt s : f.body) {
@@ -81,7 +83,7 @@ public final class SemanticAnalyzer
         }
 
         if (currentReturnType.kind != Ast.Type.Kind.VOID && !hasReturn)
-            throw error("Missing return in function: " + f.name.lexeme);
+            throw error("Missing return in function: " + f.name.lexeme, f, f.name);
 
         hasReturn = oldHasReturn;
         symbols = symbols.exitScope();
@@ -148,7 +150,7 @@ public final class SemanticAnalyzer
     public Ast.Type visitIdent(Expr.Ident e) {
         Ast.Type t = symbols.lookupVar(e.name.lexeme);
         if (t == null)
-            throw error("Undefined variable: " + e.name.lexeme);
+            throw error("Undefined variable: " + e.name.lexeme, null, e.name);
         e.inferredType = t;
         return t;
     }
@@ -157,15 +159,15 @@ public final class SemanticAnalyzer
     public Ast.Type visitIndex(Expr.Index e) {
         Ast.Type t = symbols.lookupVar(e.name.lexeme);
         if (t == null)
-            throw error("Undefined variable: " + e.name.lexeme);
+            throw error("Undefined variable: " + e.name.lexeme, null, e.name);
 
         Ast.Type current = t;
         for (Expr idx : e.indices) {
             if (current.kind != Ast.Type.Kind.ARRAY)
-                throw error("Indexing non-array");
+                throw error("Indexing non-array", null, e.name);
             Ast.Type it = idx.accept(this);
             if (it.kind != Ast.Type.Kind.INT)
-                throw error("Array index must be INT");
+                throw error("Array index must be INT", null, idx instanceof Expr.Ident ide ? ide.name : null);
             current = current.inner;
         }
 
@@ -184,18 +186,18 @@ public final class SemanticAnalyzer
         Ast.FuncDef f = symbols.lookupFunc(e.callee.lexeme);
         if (f == null) {
             if (symbols.lookupVar(e.callee.lexeme) != null)
-                throw error("Trying to call a variable as function: " + e.callee.lexeme);
-            throw error("Call to undefined function: " + e.callee.lexeme);
+                throw error("Trying to call a variable as function: " + e.callee.lexeme, null, e.callee);
+            throw error("Call to undefined function: " + e.callee.lexeme, null, e.callee);
         }
 
         if (f.params.size() != e.args.size())
-            throw error("Argument count mismatch");
+            throw error("Argument count mismatch", null, e.callee);
 
         for (int i = 0; i < f.params.size(); i++) {
             Ast.Type pt = f.params.get(i).type;
             Ast.Type at = e.args.get(i).accept(this);
             if (pt.kind != Ast.Type.Kind.ANY && !Ast.sameType(pt, at))
-                throw error("Argument type mismatch");
+                throw error("Argument type mismatch", null, e.args.get(i) instanceof Expr.Ident ide ? ide.name : null);
         }
 
         e.inferredType = f.returnType;
@@ -209,13 +211,13 @@ public final class SemanticAnalyzer
         switch (e.op.type) {
             case NOT -> {
                 if (t.kind != Ast.Type.Kind.BOOLEAN)
-                    throw error("NOT expects boolean");
+                    throw error("NOT expects boolean", null, e.op);
                 e.inferredType = new Ast.Type(Ast.Type.Kind.BOOLEAN, null, 0);
                 return e.inferredType;
             }
             case SUBTRACT -> {
                 if (!isNumeric(t))
-                    throw error("Unary minus expects numeric");
+                    throw error("Unary minus expects numeric", null, e.op);
                 e.inferredType = t;
                 return e.inferredType;
             }
@@ -233,9 +235,9 @@ public final class SemanticAnalyzer
         switch (e.op.type) {
             case ADD, SUBTRACT, MULTIPLY, DIVIDE, PERCENT -> {
                 if (!isNumeric(l) || !isNumeric(r))
-                    throw error("Arithmetic on non-numeric");
+                    throw error("Arithmetic on non-numeric", null, e.op);
                 if (!Ast.sameType(l, r))
-                    throw error("Mixed numeric types not allowed");
+                    throw error("Mixed numeric types not allowed", null, e.op);
                 result = l;
             }
             case LT, LE, GT, GE -> {
@@ -269,13 +271,13 @@ public final class SemanticAnalyzer
     public Ast.Type visitTernary(Expr.Ternary e) {
         Ast.Type c = e.cond.accept(this);
         if (c.kind != Ast.Type.Kind.BOOLEAN)
-            throw error("Ternary condition must be boolean");
+            throw error("Ternary condition must be boolean", null, e.cond instanceof Expr.Ident ide ? ide.name : null);
 
         Ast.Type t1 = e.thenExpr.accept(this);
         Ast.Type t2 = e.elseExpr.accept(this);
 
         if (!Ast.sameType(t1, t2))
-            throw error("Ternary branches must match type");
+            throw error("Ternary branches must match type", null, e.thenExpr instanceof Expr.Ident ide ? ide.name : null);
 
         e.inferredType = t1;
         return t1;
@@ -312,7 +314,6 @@ public final class SemanticAnalyzer
 
         throw error("Invalid numeric cast from " + from.kind + " to " + to.kind);
     }
-
 
 
     /* ================= STATEMENTS ================= */
@@ -366,7 +367,6 @@ public final class SemanticAnalyzer
         return null;
     }
 
-
     @Override
     public Void visitAssign(Stmt.Assign s) {
         Ast.Type target = resolveLValue(s.lvalue);
@@ -403,7 +403,6 @@ public final class SemanticAnalyzer
         return null;
     }
 
-
     @Override
     public Void visitIncDec(Stmt.IncDec s) {
         Ast.Type t = resolveLValue(s.target);
@@ -413,7 +412,6 @@ public final class SemanticAnalyzer
 
         return null;
     }
-
 
     @Override
     public Void visitReturn(Stmt.Return s) {
@@ -494,7 +492,6 @@ public final class SemanticAnalyzer
         return null;
     }
 
-
     @Override
     public Void visitDoWhileStmt(Stmt.DoWhileStmt s) {
         symbols = symbols.enterScope();
@@ -539,7 +536,6 @@ public final class SemanticAnalyzer
         return null;
     }
 
-
     /* ================= HELPERS ================= */
 
     private void visitBlock(List<Stmt> stmts) {
@@ -552,10 +548,6 @@ public final class SemanticAnalyzer
         return t.kind == Ast.Type.Kind.INT
                 || t.kind == Ast.Type.Kind.DOUBLE
                 || t.kind == Ast.Type.Kind.LONG;
-    }
-
-    private RuntimeException error(String msg) {
-        return new RuntimeException("Semantic error: " + msg);
     }
 
     private Ast.Type resolveLValue(Stmt.LValue lv) {
@@ -581,4 +573,14 @@ public final class SemanticAnalyzer
         return current;
     }
 
+    // GRESKE
+
+    private SemanticError error(String msg, Ast.TopItem node, Token location) {
+        return new SemanticError(msg, node, location);
+    }
+
+
+    private SemanticError error(String msg) {
+        return new SemanticError(msg, null, null);
+    }
 }
