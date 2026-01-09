@@ -30,23 +30,11 @@
         "op" : "+",
         "left" : {
           "type" : "ident",
-          "name" : "a",
-          "inferredType" : {
-            "base" : "gold",
-            "rank" : 0
-          }
+          "name" : "a"
         },
         "right" : {
           "type" : "ident",
-          "name" : "b",
-          "inferredType" : {
-            "base" : "gold",
-            "rank" : 0
-          }
-        },
-        "inferredType" : {
-          "base" : "gold",
-          "rank" : 0
+          "name" : "b"
         }
       } ],
       "type" : {
@@ -57,11 +45,7 @@
       "stmt" : "return",
       "expr" : {
         "type" : "ident",
-        "name" : "zbir",
-        "inferredType" : {
-          "base" : "gold",
-          "rank" : 0
-        }
+        "name" : "zbir"
       }
     } ]
   }, {
@@ -82,38 +66,18 @@
           "name" : "saberi",
           "args" : [ {
             "type" : "int",
-            "value" : 1,
-            "inferredType" : {
-              "base" : "int",
-              "rank" : 0
-            }
+            "value" : 1
           }, {
             "type" : "int",
-            "value" : 5,
-            "inferredType" : {
-              "base" : "int",
-              "rank" : 0
-            }
-          } ],
-          "inferredType" : {
-            "base" : "gold",
-            "rank" : 0
-          }
-        } ],
-        "inferredType" : {
-          "base" : "void",
-          "rank" : 0
-        }
+            "value" : 5
+          } ]
+        } ]
       }
     }, {
       "stmt" : "return",
       "expr" : {
         "type" : "int",
-        "value" : 0,
-        "inferredType" : {
-          "base" : "int",
-          "rank" : 0
-        }
+        "value" : 0
       }
     } ]
   } ]

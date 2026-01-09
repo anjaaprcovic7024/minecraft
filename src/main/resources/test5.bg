@@ -1,6 +1,0 @@
-mine gold main(){
-    craft (gold i#0: i < 5: i#i + 1:) {
-        collect(i):
-    }
-    loot 0:
-}

@@ -1,5 +1,6 @@
-package application;
+package main;
 
+import intermidiate.CodeGenerator;
 import lexer.Lexer;
 import lexer.token.Token;
 import lexer.token.TokenFormatter;
@@ -43,22 +44,26 @@ public class Application {
 
             JsonAstPrinter printer = new JsonAstPrinter();
             String astJson = printer.print(program);
-            Path astOut = Path.of("program.json");
+            Path astOut = Path.of("program_parsed.json");
             Files.writeString(astOut, astJson);
             System.out.println("AST written to: " + astOut);
 
             System.out.println("----- SEMANTICKA ANALIZA -----");
             SemanticAnalyzer semantic = new SemanticAnalyzer();
             semantic.analyze(program);
-            System.out.println("Semantic analysis passed successfully.");
-
-            // ---------------- TIPIZIRANI AST ----------------
+            System.out.println("Semantic analysis successful.");
+            // TIPIZIRANO AST
             String typedAstJson = printer.print(program);
             Path typedOut = Path.of("program_typed.json");
             Files.writeString(typedOut, typedAstJson);
             System.out.println("Typed AST written to: " + typedOut);
 
-            //System.out.println("----- GENERISANJE MEDJUKODA -----");
+            System.out.println("----- GENERISANJE MEDJUKODA -----");
+            CodeGenerator codeGen = new CodeGenerator();
+            List<String> intermediateCode = codeGen.generate(program);
+            Path codeOut = Path.of("program_generated.txt");
+            Files.write(codeOut, intermediateCode);
+            System.out.println("Intermediate code written to: " + codeOut);
 
         }
         catch (FileNotFoundException e) {

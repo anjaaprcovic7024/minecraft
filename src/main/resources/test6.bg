@@ -1,9 +1,0 @@
-mine gold main(){
-    gold a#0:
-    build (a < 10) {
-        a# a + 1:
-        collect(a):
-    }
-    loot 0:
-}
-

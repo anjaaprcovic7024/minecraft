@@ -1,0 +1,14 @@
+label saberi
+push a
+push b
+add
+pop zbir
+push zbir
+ret
+label main
+push 1
+push 5
+call saberi
+call collect
+push 0
+ret
