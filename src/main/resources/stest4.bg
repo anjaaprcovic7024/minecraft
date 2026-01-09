@@ -1,0 +1,14 @@
+mine gold main() {
+
+    gold i#0:
+
+    craft (gold j#0: j < 3: j# j + 1:) {
+        gold x# i + j:
+        build (x < 10) {
+            gold y# x * 2:
+        }
+
+    }
+
+    loot i:
+}

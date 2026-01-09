@@ -1,4 +1,16 @@
-craft (gold i#0 : i < 10 : i++:) {
-    collect(i):
-    drop("Zbir je " + i):
+mine gold main(){
+
+    gold a#5:
+
+    dig (a > 5) {
+        collect("a je vece od 5"):
+    }
+    deeper (a = 5) {
+        collect("a je jednako 5"):
+    }
+    bedrock {
+        collect("a je manje od 5"):
+    }
+
+    loot 0:
 }

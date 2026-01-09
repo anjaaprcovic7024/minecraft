@@ -15,7 +15,11 @@
       "names" : [ "a" ],
       "values" : [ {
         "type" : "int",
-        "value" : 5
+        "value" : 5,
+        "inferredType" : {
+          "base" : "int",
+          "rank" : 0
+        }
       } ],
       "type" : {
         "base" : "gold",
@@ -27,7 +31,11 @@
       "names" : [ "s" ],
       "values" : [ {
         "type" : "string",
-        "value" : "tekst"
+        "value" : "tekst",
+        "inferredType" : {
+          "base" : "string",
+          "rank" : 0
+        }
       } ],
       "type" : {
         "base" : "chain",
@@ -40,8 +48,16 @@
         "name" : "collect",
         "args" : [ {
           "type" : "ident",
-          "name" : "a"
-        } ]
+          "name" : "a",
+          "inferredType" : {
+            "base" : "gold",
+            "rank" : 0
+          }
+        } ],
+        "inferredType" : {
+          "base" : "void",
+          "rank" : 0
+        }
       }
     }, {
       "stmt" : "call",
@@ -50,8 +66,16 @@
         "name" : "collect",
         "args" : [ {
           "type" : "ident",
-          "name" : "s"
-        } ]
+          "name" : "s",
+          "inferredType" : {
+            "base" : "chain",
+            "rank" : 0
+          }
+        } ],
+        "inferredType" : {
+          "base" : "void",
+          "rank" : 0
+        }
       }
     }, {
       "stmt" : "call",
@@ -60,8 +84,16 @@
         "name" : "drop",
         "args" : [ {
           "type" : "double",
-          "value" : 1.23
-        } ]
+          "value" : 1.23,
+          "inferredType" : {
+            "base" : "double",
+            "rank" : 0
+          }
+        } ],
+        "inferredType" : {
+          "base" : "void",
+          "rank" : 0
+        }
       }
     }, {
       "stmt" : "call",
@@ -70,14 +102,26 @@
         "name" : "drop",
         "args" : [ {
           "type" : "boolean",
-          "value" : true
-        } ]
+          "value" : true,
+          "inferredType" : {
+            "base" : "boolean",
+            "rank" : 0
+          }
+        } ],
+        "inferredType" : {
+          "base" : "void",
+          "rank" : 0
+        }
       }
     }, {
       "stmt" : "return",
       "expr" : {
         "type" : "int",
-        "value" : 0
+        "value" : 0,
+        "inferredType" : {
+          "base" : "int",
+          "rank" : 0
+        }
       }
     } ]
   } ]

@@ -58,11 +58,12 @@ public final class Ast {
     }
 
     public static final class Type {
-        public enum Kind { BOOLEAN, INT, DOUBLE, LONG, CHAR, STRING, ARRAY, VOID }
+        public enum Kind { BOOLEAN, INT, DOUBLE, LONG, CHAR, STRING, ARRAY, VOID, ANY }
+
         public final Kind kind;
         public final Token baseType;
         public final int rank;
-        public Kind inner;
+        public Type inner;
 
         public Type(Kind kind, Token baseType, int rank) {
             this.kind = kind;
@@ -70,7 +71,67 @@ public final class Ast {
             this.rank = rank;
             this.inner = null;
         }
+
+        public boolean isArray() {
+            return kind == Kind.ARRAY;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Type other)) return false;
+
+            if (kind != other.kind) return false;
+            if (rank != other.rank) return false;
+
+            if (kind == Kind.ARRAY) {
+                return inner != null && inner.equals(other.inner);
+            }
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = kind.hashCode();
+            result = 31 * result + rank;
+            if (kind == Kind.ARRAY && inner != null) {
+                result = 31 * result + inner.hashCode();
+            }
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            if (kind == Kind.ARRAY && inner != null) {
+                return "ARRAY[" + inner.toString() + "]";
+            }
+            return kind.name();
+        }
+
     }
+
+
+    public static boolean isNumeric(Ast.Type t) {
+        return t.kind == Ast.Type.Kind.INT
+                || t.kind == Ast.Type.Kind.DOUBLE
+                || t.kind == Ast.Type.Kind.LONG;
+    }
+
+    public static boolean isBoolean(Ast.Type t) {
+        return t.kind == Ast.Type.Kind.BOOLEAN;
+    }
+
+    public static boolean sameType(Ast.Type a, Ast.Type b) {
+        if (a.kind != b.kind) return false;
+        if (a.rank != b.rank) return false;
+        if (a.kind == Type.Kind.ARRAY) {
+            if (a.inner == null || b.inner == null) return false;
+            return sameType(a.inner, b.inner);
+        }
+        return true;
+    }
+
 
 
 

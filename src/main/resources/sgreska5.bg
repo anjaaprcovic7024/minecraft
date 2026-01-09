@@ -1,0 +1,9 @@
+mine gold main() {
+    gold a#5:
+    diamond x#a + 3.5:
+    diamond y#1.0:
+    redstone z#powered and unpowered:
+    loot 0:
+}
+
+

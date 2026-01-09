@@ -1,7 +1,14 @@
-redstone aktivan#powered:
-
-dig (aktivan) {
-   collect("Redstone signal je aktivan"):
-} bedrock {
-   collect("Signal nije aktivan"):
+mine gold main(){
+    redstone flag#powered:
+    dig (flag=powered) {
+        craft (gold i#0: i < 3: i#i + 1:) {
+            dig (i % 2 = 0) {
+                collect("paran"):
+            }
+            bedrock {
+                collect("neparan"):
+            }
+        }
+    }
+    loot 0:
 }

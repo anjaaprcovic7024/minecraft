@@ -20,6 +20,7 @@ public final class JsonAstPrinter implements
         o.put("type", "unary");
         o.put("op", e.op.lexeme);       // npr. "!"
         o.set("right", e.right.accept(this));
+        addInferredType(o, e);
         return o;
     }
 
@@ -30,6 +31,7 @@ public final class JsonAstPrinter implements
         o.set("cond", e.cond.accept(this));
         o.set("thenExpr", e.thenExpr.accept(this));
         o.set("elseExpr", e.elseExpr.accept(this));
+        addInferredType(o, e);
         return o;
     }
 
@@ -59,7 +61,12 @@ public final class JsonAstPrinter implements
             o.put("kind", "funcDef");
             o.put("name", f.name.lexeme);
             ObjectNode rt = M.createObjectNode();
-            rt.put("base", f.returnType.kind == Ast.Type.Kind.INT ? f.returnType.baseType.lexeme : "implicit void");
+            String base =
+                    f.returnType.baseType != null
+                            ? f.returnType.baseType.lexeme
+                            : f.returnType.kind.name().toLowerCase();
+
+            rt.put("base", base);
             rt.put("rank", f.returnType.rank);
             o.set("returnType", rt);
             ArrayNode params = M.createArrayNode();
@@ -98,6 +105,7 @@ public final class JsonAstPrinter implements
         ArrayNode elems = M.createArrayNode();
         for (Expr ex : e.elements) elems.add(ex.accept(this));
         o.set("elements", elems);
+        addInferredType(o, e);
         return o;
     }
 
@@ -106,6 +114,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "ident");
         o.put("name", e.name.lexeme);
+        addInferredType(o, e);
         return o;
     }
 
@@ -116,6 +125,7 @@ public final class JsonAstPrinter implements
         ArrayNode idx = M.createArrayNode();
         for (Expr ex : e.indices) idx.add(ex.accept(this));
         o.set("indices", idx);
+        addInferredType(o, e);
         return o;
     }
 
@@ -123,6 +133,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "group");
         o.set("expr", e.inner.accept(this));
+        addInferredType(o, e);
         return o;
     }
 
@@ -133,6 +144,7 @@ public final class JsonAstPrinter implements
         ArrayNode args = M.createArrayNode();
         for (Expr a : e.args) args.add(a.accept(this));
         o.set("args", args);
+        addInferredType(o, e);
         return o;
     }
 
@@ -142,6 +154,7 @@ public final class JsonAstPrinter implements
         o.put("op", e.op.lexeme);
         o.set("left", e.left.accept(this));
         o.set("right", e.right.accept(this));
+        addInferredType(o, e);
         return o;
     }
 
@@ -165,6 +178,10 @@ public final class JsonAstPrinter implements
 
         o.set("values", values);
 
+        ObjectNode t = M.createObjectNode();
+        t.put("base", s.type.baseType != null ? s.type.baseType.lexeme : s.type.kind.name().toLowerCase());
+        t.put("rank", s.type.rank);
+        o.set("type", t);
         return o;
     }
 
@@ -236,9 +253,6 @@ public final class JsonAstPrinter implements
         return o;
     }
 
-
-
-
     @Override
     public JsonNode visitIncDec(Stmt.IncDec s) {
         ObjectNode o = M.createObjectNode();
@@ -283,6 +297,23 @@ public final class JsonAstPrinter implements
         return o;
     }
 
+    @Override
+    public JsonNode visitArrayAssign(Stmt.ArrayAssign s) {
+        ObjectNode o = M.createObjectNode();
+        o.put("stmt", "arrayAssign");
+
+        ObjectNode target = M.createObjectNode();
+        target.put("name", s.target.name.lexeme);
+        ArrayNode idx = M.createArrayNode();
+        for (Expr e : s.target.indices) {
+            idx.add(e.accept(this));
+        }
+        target.set("indices", idx);
+        o.set("target", target);
+
+        o.set("value", s.value.accept(this));
+        return o;
+    }
 
 
     @Override
@@ -290,6 +321,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "int");
         o.put("value", e.value);
+        addInferredType(o, e);
         return o;
     }
 
@@ -298,6 +330,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "double");
         o.put("value", e.value);
+        addInferredType(o, e);
         return o;
     }
 
@@ -306,6 +339,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "long");
         o.put("value", e.value);
+        addInferredType(o, e);
         return o;
     }
 
@@ -314,6 +348,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "char");
         o.put("value", String.valueOf(e.value));
+        addInferredType(o, e);
         return o;
     }
 
@@ -322,6 +357,7 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "string");
         o.put("value", e.value);
+        addInferredType(o, e);
         return o;
     }
 
@@ -330,7 +366,32 @@ public final class JsonAstPrinter implements
         ObjectNode o = M.createObjectNode();
         o.put("type", "boolean");
         o.put("value", e.value);
+        addInferredType(o, e);
         return o;
+    }
+
+    @Override
+    public JsonNode visitCast(Expr.Cast e) {
+        ObjectNode o = M.createObjectNode();
+        o.put("type", "cast");
+
+        ObjectNode t = M.createObjectNode();
+        t.put("base", e.type.baseType.lexeme);
+        t.put("rank", e.type.rank);
+
+        o.set("to", t);
+        o.set("expr", e.expr.accept(this));
+        addInferredType(o, e);
+        return o;
+    }
+
+    private void addInferredType(ObjectNode o, Expr e) {
+        if (e.inferredType != null) {
+            ObjectNode t = M.createObjectNode();
+            t.put("base", e.inferredType.baseType != null ? e.inferredType.baseType.lexeme : e.inferredType.kind.name().toLowerCase());
+            t.put("rank", e.inferredType.rank);
+            o.set("inferredType", t);
+        }
     }
 
 

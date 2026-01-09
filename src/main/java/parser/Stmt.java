@@ -17,6 +17,7 @@ public abstract class Stmt {
         R visitWhileStmt(WhileStmt s);
         R visitDoWhileStmt(DoWhileStmt s);
         R visitExprStmt(ExprStmt s);
+        R visitArrayAssign(ArrayAssign s);
     }
 
     public abstract <R> R accept(Visitor<R> v);
@@ -39,6 +40,19 @@ public abstract class Stmt {
         public <R> R accept(Visitor<R> v) { return v.visitVarDecl(this); }
     }
 
+    public static final class ArrayAssign extends Stmt {
+        public final LValue target;
+        public final Expr value;
+        public ArrayAssign(LValue target, Expr value) {
+            this.target = target;
+            this.value = value;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> v) {
+           return v.visitArrayAssign(this);
+        }
+    }
 
 
 
@@ -135,8 +149,9 @@ public abstract class Stmt {
     public static final class ExprStmt extends Stmt {
         public final Expr expr;
         public ExprStmt(Expr expr) { this.expr = expr; }
-        @Override public <R> R accept(Visitor<R> v) {
-            throw new UnsupportedOperationException("ExprStmt visitor not implemented");
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitExprStmt(this);
         }
     }
 

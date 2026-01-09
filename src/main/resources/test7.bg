@@ -1,0 +1,8 @@
+mine gold main(){
+    gold a#5:
+    do {
+        a# a + 1:
+        collect(a):
+    }build (a < 10):
+    loot 0:
+}

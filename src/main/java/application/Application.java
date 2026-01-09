@@ -6,6 +6,7 @@ import lexer.token.TokenFormatter;
 import parser.Ast;
 import parser.JsonAstPrinter;
 import parser.ParserAst;
+import semantic.SemanticAnalyzer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,24 +31,35 @@ public class Application {
         try {
             inputFile = Paths.get(args[0]);
             String code = Files.readString(inputFile);
+
+            System.out.println("----- LEKSICKA ANALIZA -----");
             Lexer lexer = new Lexer(code);
             List<Token> tokens = lexer.scanTokens();
-
             System.out.println(TokenFormatter.formatList(tokens));
 
-            /*
-            RecognizerParser recognizerParser = new RecognizerParser(tokens);
-            recognizerParser.parseProgram(); // zavrsava se ako uspesna parsira, u suprotnom baci error
-            System.out.println("Parsing finished successfully");
-            */
-
+            System.out.println("----- SINTAKSNA ANALIZA -----");
             ParserAst parser = new ParserAst(tokens);
-            Ast.Program prog = parser.parseProgram();
+            Ast.Program program = parser.parseProgram();
 
-            String json = new JsonAstPrinter().print(prog);
-            Path out = Path.of("program.json");
-            Files.writeString(out, json);
-            System.out.println("AST written to: " + out);
+            JsonAstPrinter printer = new JsonAstPrinter();
+            String astJson = printer.print(program);
+            Path astOut = Path.of("program.json");
+            Files.writeString(astOut, astJson);
+            System.out.println("AST written to: " + astOut);
+
+            System.out.println("----- SEMANTICKA ANALIZA -----");
+            SemanticAnalyzer semantic = new SemanticAnalyzer();
+            semantic.analyze(program);
+            System.out.println("Semantic analysis passed successfully.");
+
+            // ---------------- TIPIZIRANI AST ----------------
+            String typedAstJson = printer.print(program);
+            Path typedOut = Path.of("program_typed.json");
+            Files.writeString(typedOut, typedAstJson);
+            System.out.println("Typed AST written to: " + typedOut);
+
+            //System.out.println("----- GENERISANJE MEDJUKODA -----");
+
         }
         catch (FileNotFoundException e) {
             System.err.println("File not found: " + inputFile);

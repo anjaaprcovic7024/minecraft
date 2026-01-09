@@ -1,0 +1,11 @@
+gold g#10:
+
+mine gold main() {
+    gold g#5:
+    gold h# g + 1:
+    dig (powered) {
+        gold h# 2:
+    }
+
+    loot h:
+}

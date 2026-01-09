@@ -1,0 +1,3 @@
+mine gold sabiranje(gold a, gold b) {
+    loot a + b:
+}

@@ -1,0 +1,33 @@
+mine gold add(gold a, gold b){
+    loot a+b:
+}
+
+mine chain greet(chain name) {
+    collect("Hello, "):
+    collect(name):
+    loot "":
+}
+
+mine gold main() {
+    gold x#5:
+    diamond y#3.5:
+    chain s#"Steve":
+
+    gold sum#add(x, 10):
+    greet(s):
+
+    redstone flag#powered:
+    dig (x > 3) {
+        gold z#sum + 2:
+        flag#unpowered:
+    } deeper (y < 5.0) {
+        flag#powered:
+    } bedrock {
+        flag#unpowered:
+    }
+
+    chest[gold] arr#[1, 2, 3]:
+    arr[0]#10:
+
+    loot 0:
+}

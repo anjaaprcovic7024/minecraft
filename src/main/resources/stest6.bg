@@ -1,0 +1,10 @@
+mine gold main(){
+
+    gold z # (gold) 10.000:
+
+    gold a#5:
+    diamond b# (diamond) a:
+
+    loot 0:
+}
+

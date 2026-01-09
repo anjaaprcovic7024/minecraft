@@ -1,0 +1,9 @@
+mine gold main() {
+    dig ("1") {
+        loot 0:
+    }
+
+    craft (gold i#0: i[10]: i#i + 1:) {
+        loot i:
+    }
+}

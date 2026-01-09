@@ -1,11 +1,6 @@
-gold x#0:
-build(x < 2) {
-    x++:
-    collect(x):
+mine gold main(){
+    craft (gold i#0: i < 5: i#i + 1:) {
+        collect(i):
+    }
+    loot 0:
 }
-
-gold y#0:
-do {
-    y++:
-    collect(y):
-} build(y < 2):

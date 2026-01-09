@@ -1,0 +1,10 @@
+mine gold sum(gold x, gold y) {
+    gold z# x + y:
+    loot z:
+}
+
+mine gold main() {
+    gold r# sum(3, 4):
+    x#5:
+    loot r:
+}

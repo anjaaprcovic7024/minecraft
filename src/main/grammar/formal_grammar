@@ -53,10 +53,10 @@ param =
 // npr: gold a, chain ime
 
 func_def =
-    FUNCTION IDENTIFICATOR LPAREN [ params ] RPAREN
+    FUNCTION type IDENTIFICATOR LPAREN [ params ] RPAREN
         block
 ;
-// npr: mine sabiranje(gold a, gold b) { ... }
+// npr: mine int sabiranje(gold a, gold b) { ... }
 
 return_stmt =
     RETURN expr SEPARATOR
@@ -315,6 +315,10 @@ additive_expr =
 multiplicative_expr =
     unary_expr { (MULTIPLY | DIVIDE | PERCENT) unary_expr }
 ;
+
+cast_expr
+    → '(' type ')' cast_expr
+    | unary_expr
 
 unary_expr =
       NOT unary_expr

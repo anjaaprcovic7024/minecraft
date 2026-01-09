@@ -1,7 +1,9 @@
-mine main() {
+mine gold main(){
     gold a#5:
-    gold b#10:
-    gold zbir:
-    zbir#(a + b):
+    diamond pi#3.14:
+    redstone flag#powered:
+    chest[gold][5] niz:
+    niz# [1,2,3,4,5]:
+    chain ime#"Luka":
+    loot 0:
 }
-

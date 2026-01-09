@@ -1,0 +1,7 @@
+gold g#10:
+
+mine gold main() {
+    gold x#5:
+    gold y#g + x:
+    loot y:
+}

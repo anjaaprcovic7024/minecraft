@@ -1,0 +1,9 @@
+mine gold main() {
+    gold a#5:
+    chain s#"tekst":
+    collect(a):
+    collect(s):
+    drop(1.23):
+    drop(powered):
+    loot 0:
+}

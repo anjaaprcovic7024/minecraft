@@ -1,0 +1,9 @@
+mine gold f(gold a) {
+    loot a:
+}
+
+mine gold main() {
+    gold x#f():
+    f(1.5):
+    loot 0:
+}

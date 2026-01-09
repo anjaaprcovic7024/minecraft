@@ -6,6 +6,8 @@ import java.util.List;
 
 public abstract class Expr {
 
+    public Ast.Type inferredType;
+
     public interface Visitor<R> {
         R visitArrayLiteral(ArrayLiteral e);
         R visitIntLiteral(IntLiteral e);
@@ -21,6 +23,7 @@ public abstract class Expr {
         R visitBinary(Binary e);
         R visitUnary(Unary e);
         R visitTernary(Ternary e);
+        R visitCast(Cast e);
     }
 
     public abstract <R> R accept(Visitor<R> v);
@@ -143,4 +146,20 @@ public abstract class Expr {
         public Binary(Expr left, Token op, Expr right) { this.left = left; this.op = op; this.right = right; }
         @Override public <R> R accept(Visitor<R> v) { return v.visitBinary(this); }
     }
+
+    public static final class Cast extends Expr {
+        public final Ast.Type type;
+        public final Expr expr;
+
+        public Cast(Ast.Type type, Expr expr) {
+            this.type = type;
+            this.expr = expr;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitCast(this);
+        }
+    }
+
 }
